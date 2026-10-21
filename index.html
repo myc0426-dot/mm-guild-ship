@@ -135,7 +135,7 @@
     <div id="sync-status-m" class="md:hidden text-[11px] faint num mt-2 text-right"></div>
     <div id="demo-banner" class="hidden mt-3">
       <div class="sub px-3.5 py-2.5 text-xs md:text-sm flex flex-wrap items-center justify-between gap-2" style="border-color: rgba(214,170,100,.3)">
-        <span class="text-amber-100/80">示範模式：尚未設定 API_URL，資料只存在這台裝置，名單為假資料。</span>
+        <span class="text-amber-100/80">示範模式：還沒連上公會資料，名單是假資料，修改只會存在這台裝置。</span>
         <button data-act="demo-reset" class="btn btn-ghost btn-sm nowrap">重設示範資料</button>
       </div>
     </div>
@@ -157,7 +157,7 @@
       <div class="flex items-end justify-between gap-2 mb-3">
         <div>
           <h2 class="sec-title">認領進度</h2>
-          <p class="text-xs faint mt-0.5">已認領 / 目標・施工順序 2-1 → 2-2 → 2-3 → 2-4</p>
+          <p class="text-xs faint mt-0.5">數字為「已認領 / 目標」・施工順序 2-1 → 2-2 → 2-3 → 2-4，建議由 2-1 開始</p>
         </div>
       </div>
       <div id="stages" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"></div>
@@ -188,7 +188,7 @@
         <h3 id="modal-title" class="text-base md:text-lg font-bold text-slate-100">群組公告文字</h3>
         <button data-act="close-modal" aria-label="關閉" class="btn btn-ghost w-9 h-9 text-lg leading-none">&times;</button>
       </div>
-      <p class="text-xs faint">依目前實際認領人數計算；尚無人認領的組別以建議人數估算。可直接貼到 Discord / LINE。</p>
+      <p class="text-xs faint">「建議每人」是把目標平分給該組的建議人數；加入的人比建議人數多時，改用實際人數平分。可直接貼到 Discord / LINE。</p>
       <textarea id="announce-text" readonly class="field w-full flex-1 min-h-[40vh] p-3 text-xs md:text-sm font-mono resize-none leading-relaxed"></textarea>
       <div class="flex justify-end gap-2">
         <button data-act="close-modal" class="btn btn-ghost px-4 py-2">關閉</button>
@@ -210,14 +210,17 @@ const REFRESH_MS = 45000;
  *    - items  ：交付品屬於哪一組、說明（tip = 額外提醒）
  *    - recipes：加工配方（每批）；網頁會自動往下拆出每人要準備的原料
  *               time 可留空，留空就不顯示
- *    - groups ：組別資訊、建議人數（plannedMembers，沒人認領時用來估算）
+ *    - groups ：組別資訊、建議人數（plannedMembers；建議每人 = 目標 ÷ max(建議人數, 實際認領人數)）
  *    ⚠️ items 的 key（例如 wood_plus）與階段 id（例如 2-1）已存進試算表，請勿改名。
  * ===================================================================== */
 const CONFIG = {
   guildName: '諸神降臨',
 
+  // 原料單位（沒列的預設「個」）
+  rawUnits: { '長莖稈': '根' },
+
   notes: {
-    beeswax: '蜂蠟：瓦爾特（杜巴頓）、康納（庫漢）、吉爾摩（班克爾）雜貨店各自每角色每週限購 30 個，需生活力 7,000。'
+    beeswax: '瓦爾特（杜巴頓）、康納（庫漢）、吉爾摩（班克爾）雜貨店各自每角色每週限購 30 個，需生活力 7,000。'
   },
 
   stages: [
@@ -265,13 +268,13 @@ const CONFIG = {
 
   groups: [
     { id: 'A', name: '伐木建材隊', icon: '🌲', color: 'emerald', plannedMembers: 9,
-      tagline: '2-1 木材+、2-2 高級木材、2-3 堅硬木材，全船用量最大的一組' },
+      tagline: '負責 2-1 木材+、2-2 高級木材、2-3 堅硬木材，是全船用量最大的一組' },
     { id: 'B', name: '鋼鐵焦油隊', icon: '⛏️', color: 'amber', plannedMembers: 8,
-      tagline: '2-1、2-2 合金鋼錠與 2-1、2-4 焦油，開局破冰關鍵組' },
+      tagline: '負責 2-1、2-2 的合金鋼錠，以及 2-1、2-4 的焦油' },
     { id: 'C', name: '紡織製革隊', icon: '🐑', color: 'blue', plannedMembers: 7,
-      tagline: '2-2 膠水與 2-3 厚布料、繩索', tip: 'beeswax' },
+      tagline: '負責 2-2 膠水，以及 2-3 的厚布料與繩索', tip: 'beeswax' },
     { id: 'D', name: '蘑菇煉金隊', icon: '🍄', color: 'purple', plannedMembers: 6,
-      tagline: '2-4 魔力起爆劑與壯壯蘑菇汁液，收尾特攻隊' }
+      tagline: '負責最後 2-4 的魔力起爆劑與壯壯蘑菇汁液' }
   ]
 };
 /* ======================== 以下為程式，一般不需修改 ======================== */
@@ -362,11 +365,11 @@ function computed() {
     if (claimed[m.group]) claimed[m.group].push(m);
     for (const [k, v] of Object.entries(m.reports || {})) totals[k] = (totals[k] || 0) + (Number(v) || 0);
   }
-  // 每組有效人數：有人認領用實際人數，否則用建議人數估算
+  // 分攤人數：建議人數與實際認領人數取較多者（人少時不會把整份目標壓在一兩個人身上）
   const heads = {};
   for (const g of CONFIG.groups) {
     const n = claimed[g.id].length;
-    heads[g.id] = { n: n || g.plannedMembers, real: n > 0 };
+    heads[g.id] = { n: Math.max(g.plannedMembers, n), claimed: n };
   }
   const stages = CONFIG.stages.map(s => {
     let got = 0, need = 0;
@@ -445,7 +448,7 @@ async function refresh() {
   if (state.loading || state.saving) return;
   state.loading = true; renderStatus();
   try { acceptData(await apiGet()); }
-  catch (e) { state.error = `讀取失敗：${e.message || e}（請檢查網路或 API 網址）`; }
+  catch (e) { state.error = `讀不到公會資料，請檢查網路後按「重試」。（${e.message || e}）`; }
   state.loading = false;
   renderAll();
 }
@@ -456,7 +459,7 @@ async function save(body, okMsg) {
     acceptData(await apiPost(body));
     state.dirty = false; state.flash = okMsg || '✅ 已儲存';
   } catch (e) {
-    state.flash = `❌ 儲存失敗：${e.message || e}`;
+    state.flash = `❌ 儲存失敗，請再試一次（${e.message || e}）`;
   }
   state.saving = false;
   renderAll();
@@ -476,7 +479,7 @@ function renderStatus() {
   let t = '';
   if (state.saving) t = '儲存中…';
   else if (state.loading) t = '更新中…';
-  else if (state.lastSync) t = `${DEMO ? '示範資料' : '已同步'} ${timeText(state.lastSync.toISOString())}`;
+  else if (state.lastSync) t = `${DEMO ? '示範資料・' : ''}${timeText(state.lastSync.toISOString())} 更新`;
   $('sync-status').textContent = t;
   $('sync-status-m').textContent = t;
   $('refresh-btn').disabled = state.loading || state.saving;
@@ -500,9 +503,11 @@ function othersOf(k) {
 }
 function myGapHtml(k, qty) {
   const have = othersOf(k) + (Number(state.draft[k]) || 0);
-  if (have > qty) return `<span class="text-amber-200/80">超出目標 <b class="num">${fmt(have - qty)}</b>，可以減少一些</span>`;
-  if (have >= qty) return '<span class="text-emerald-200/80">已認領完畢 ✓</span>';
-  return `含你在內還缺 <b class="num text-slate-200">${fmt(qty - have)}</b>`;
+  const mine = Number(state.draft[k]) || 0;
+  const mineTxt = mine > 0 ? `<span class="faint">・</span>你已認領 <b class="num text-slate-200">${fmt(mine)}</b>` : '';
+  if (have > qty) return `<span class="text-amber-200/80">已超出目標 <b class="num">${fmt(have - qty)}</b> 個，可以少準備一些</span>${mineTxt}`;
+  if (have >= qty) return `<span class="text-emerald-200/80">已全部認領完畢 ✓</span>${mineTxt}`;
+  return `還有 <b class="num text-slate-200">${fmt(qty - have)}</b> 個沒人認領${mineTxt}`;
 }
 
 /* ---------- 畫面：我的認領 ---------- */
@@ -514,9 +519,9 @@ function renderMine() {
 
   if (!state.meId) {
     el.innerHTML = `
-      <div class="eyebrow">MY CLAIM</div>
-      <h2 class="text-lg md:text-xl font-bold text-slate-100 mt-1">我要認領</h2>
-      <p class="text-sm muted mt-1.5 leading-relaxed">輸入遊戲 ID 後即可認領組別，並填寫你打算負責準備的數量，避免大家重複備料。ID 會記在這台裝置上，下次不用再輸入。</p>
+      <div class="eyebrow">我的認領</div>
+      <h2 class="text-lg md:text-xl font-bold text-slate-100 mt-1">先輸入你的遊戲 ID</h2>
+      <p class="text-sm muted mt-1.5 leading-relaxed">輸入後就能選擇組別、填寫你打算負責準備的數量，避免大家重複備料。ID 會記在這台裝置上，下次不用再輸入。</p>
       <form id="id-form" class="mt-4 flex flex-col sm:flex-row gap-2 max-w-md">
         <input id="id-input" maxlength="${MAX_ID_LEN}" autocomplete="nickname" placeholder="你的遊戲 ID" class="field flex-1 px-3.5 py-2.5">
         <button class="btn btn-primary px-6 py-2.5 nowrap">開始</button>
@@ -549,7 +554,7 @@ function renderMine() {
     rowsHtml += `<div class="mt-4" ${acStyle(s.color)}>
       <div class="flex items-center gap-2 text-xs font-bold">
         <span class="ac-dot"></span><span class="ac-text">${esc(s.id)} ${esc(s.name)}</span>
-        ${s.done ? '<span class="chip chip-ok">已認領滿</span>' : s.id === c.currentId ? '<span class="chip chip-ac">認領中</span>' : ''}
+        ${s.done ? '<span class="chip chip-ok">已認領完畢</span>' : s.id === c.currentId ? '<span class="chip chip-ac">目前優先</span>' : ''}
       </div>
       <div class="mt-2 space-y-2">${rows.map(r => {
         const k = key(s.id, r.itemId);
@@ -560,7 +565,8 @@ function renderMine() {
         return `<div class="sub ${others + val >= r.qty ? 'done' : ''} p-3 flex flex-wrap items-center gap-x-3 gap-y-2.5">
           <div class="flex-1 min-w-[10rem]">
             <div class="flex items-center gap-2 flex-wrap"><span class="font-bold text-slate-100">${esc(r.item.name)}</span><span class="text-[11px] faint num">目標 ${fmt(r.qty)}</span></div>
-            <div class="text-xs muted mt-0.5">${other ? `支援 ${r.item.group} 組・` : ''}建議每人 <b class="num text-slate-200">${fmt(r.quota)}</b>${c.heads[r.item.group].real ? '' : '（估）'}<span class="faint">・</span><span data-gap="${k}" data-qty="${r.qty}">${myGapHtml(k, r.qty)}</span></div>
+            <div class="text-xs muted mt-0.5">建議每人 <b class="num text-slate-200">${fmt(r.quota)}</b>${other ? `<span class="faint">（支援 ${r.item.group} 組）</span>` : ''}</div>
+            <div class="text-xs muted mt-0.5" data-gap="${k}" data-qty="${r.qty}">${myGapHtml(k, r.qty)}</div>
             <div class="mt-1.5 max-w-[14rem]"><div class="bar thin"><i data-gapbar="${k}" style="width:${pct(covered, r.qty)}%"></i></div></div>
           </div>
           <div class="flex flex-col items-start sm:items-end gap-1">
@@ -568,28 +574,29 @@ function renderMine() {
             <div class="flex items-center gap-1.5">
               <input type="number" inputmode="numeric" min="0" max="1000000" step="1" data-key="${k}" value="${val || ''}" placeholder="0" aria-label="${esc(r.item.name)} 我認領的數量"
                 class="field num w-24 px-2.5 py-2 text-right font-bold">
-              <button data-act="fill" data-key="${k}" data-qty="${r.qty}" data-quota="${r.quota}" title="填入「建議每人」與「剩餘缺口」中較小的數量" class="btn btn-ghost btn-sm nowrap">填入缺口</button>
+              <button data-act="fill" data-key="${k}" data-qty="${r.qty}" data-quota="${r.quota}" title="帶入建議每人的數量（若剩下的缺口更少，就帶入缺口）" ${others >= r.qty ? 'disabled' : ''} class="btn btn-ghost btn-sm nowrap">填建議量</button>
               <button data-act="zero" data-key="${k}" class="btn btn-ghost btn-sm nowrap faint">歸零</button>
             </div>
           </div>
+          ${rowDetails(s, r, c.heads[r.item.group], val)}
         </div>`;
       }).join('')}</div></div>`;
   }
-  if (!rowsHtml) rowsHtml = '<p class="text-sm muted mt-4">先認領一個組別，這裡就會出現你可以認領數量的項目；也可以勾選「顯示所有項目」支援別組。</p>';
+  if (!rowsHtml) rowsHtml = '<p class="text-sm muted mt-4">先在上面選擇組別，這裡就會列出該組要準備的材料；想支援別組，可以勾選「也顯示其他組」。</p>';
 
   el.innerHTML = `
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
-        <div class="eyebrow">MY CLAIM</div>
+        <div class="eyebrow">我的認領</div>
         <h2 class="text-lg md:text-xl font-bold text-slate-100 mt-1 break-all">${esc(state.meId)}</h2>
-        <div class="mt-1 text-sm" ${g ? acStyle(g.color) : ''}>${g ? `<span class="ac-text font-medium">${g.icon} ${g.id} 組・${esc(g.name)}</span>` : '<span class="muted">尚未認領組別</span>'}</div>
+        <div class="mt-1 text-sm" ${g ? acStyle(g.color) : ''}>${g ? `<span class="ac-text font-medium">${g.icon} ${g.id} 組・${esc(g.name)}</span>` : '<span class="muted">還沒選擇組別</span>'}</div>
       </div>
       <button data-act="switch-id" class="btn btn-ghost btn-sm nowrap">切換 ID</button>
     </div>
 
-    <div class="mt-5 text-sm font-bold text-slate-200">① 認領組別</div>
+    <div class="mt-5 text-sm font-bold text-slate-200">① 選擇組別</div>
     <div class="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">${groupBtns}</div>
-    ${myGroup ? `<button data-act="claim" data-group="" class="mt-2 text-xs faint underline underline-offset-2" ${state.saving ? 'disabled' : ''}>取消認領</button>` : ''}
+    ${myGroup ? `<button data-act="claim" data-group="" class="mt-2 text-xs faint underline underline-offset-2" ${state.saving ? 'disabled' : ''}>退出這一組</button>` : ''}
 
     <div class="mt-6 flex flex-wrap items-end justify-between gap-2">
       <div>
@@ -597,13 +604,13 @@ function renderMine() {
         <div class="text-xs muted mt-0.5">填你打算負責準備的總數，避免大家重複備料；準備不了時請改小，讓別人接手</div>
       </div>
       <label class="flex items-center gap-2 text-xs muted select-none cursor-pointer">
-        <input type="checkbox" data-act="show-all" ${state.showAll ? 'checked' : ''} class="w-4 h-4 accent-indigo-400"> 顯示所有項目
+        <input type="checkbox" data-act="show-all" ${state.showAll ? 'checked' : ''} class="w-4 h-4 accent-indigo-400"> 也顯示其他組
       </label>
     </div>
     ${rowsHtml}
     <div class="mt-5 pt-4 flex flex-wrap items-center gap-3 border-t" style="border-color:var(--line)">
       <button data-act="save" ${state.saving ? 'disabled' : ''} class="btn btn-primary px-6 py-2.5">${state.saving ? '儲存中…' : '儲存認領'}</button>
-      <span class="text-sm ${state.dirty ? 'text-amber-200/90' : 'muted'}">${state.dirty ? '有尚未儲存的變更' : esc(state.flash)}</span>
+      <span class="text-sm ${state.dirty ? 'text-amber-200/90' : 'muted'}">${state.dirty ? '還沒儲存，記得按「儲存認領」' : esc(state.flash)}</span>
       ${me ? '<button data-act="delete-me" class="ml-auto text-xs text-rose-300/70 underline underline-offset-2">刪除我的紀錄</button>' : ''}
     </div>`;
 }
@@ -613,10 +620,10 @@ function renderStages() {
   const c = computed();
   $('stages').innerHTML = c.stages.map(s => {
     const cur = s.id === c.currentId;
-    const status = s.done ? '<span class="chip chip-ok">已認領滿</span>' : cur ? '<span class="chip chip-ac">認領中</span>' : '<span class="text-[11px] faint">待認領</span>';
+    const status = s.done ? '<span class="chip chip-ok">已認領完畢</span>' : cur ? '<span class="chip chip-ac">目前優先</span>' : '';
     return `<div class="card accent-top p-4 ${cur || s.done ? '' : 'opacity-90'}" ${acStyle(s.color)}>
       <div class="flex items-center justify-between gap-2">
-        <span class="eyebrow ac-text">${esc(s.label)}・${esc(s.id)}</span>${status}
+        <span class="eyebrow ac-text">第 ${c.stages.indexOf(s) + 1} 步・${esc(s.id)}</span>${status}
       </div>
       <div class="flex items-baseline justify-between gap-2 mt-1.5">
         <div class="font-bold text-slate-100">${esc(s.name)}</div>
@@ -626,7 +633,7 @@ function renderStages() {
       <div class="mt-3 space-y-2.5">${s.rows.map(r => `
         <div>
           <div class="flex justify-between gap-2 text-xs">
-            <span class="text-slate-300 truncate">${esc(r.item.name)} <span class="faint">・${r.item.group}</span></span>
+            <span class="text-slate-300 truncate">${esc(r.item.name)} <span class="faint">・${r.item.group} 組</span></span>
             <span class="muted nowrap num"><b class="font-semibold ${r.have >= r.qty ? 'text-emerald-200/90' : 'text-slate-200'}">${fmt(r.have)}</b> / ${fmt(r.qty)}</span>
           </div>
           <div class="text-[11px] mt-0.5 num ${r.over ? 'text-amber-200/70' : r.gap ? 'faint' : 'text-emerald-200/70'}">${r.over ? `超出 ${fmt(r.over)}` : r.gap ? `還缺 ${fmt(r.gap)}` : '已認領完畢'}</div>
@@ -644,21 +651,49 @@ function renderFilters() {
 
 function tipBox(k) {
   const t = noteText(k);
-  return t ? `<div class="sub px-3 py-2 text-xs leading-relaxed text-amber-100/80" style="border-color: rgba(214,170,100,.22)">🐝 ${esc(t)}</div>` : '';
+  return t ? `<div class="sub px-3 py-2 text-xs leading-relaxed text-amber-100/80" style="border-color: rgba(214,170,100,.22)">🐝 <b>蜂蠟哪裡買：</b>${esc(t)}</div>` : '';
 }
 
-function rowDetails(s, r, h) {
-  const { crafts, raw } = expandNeeds({ [r.item.name]: r.qty });
-  const id = `row-${s.id}-${r.itemId}`;
-  const per = n => Math.ceil(n / h.n);
-  return `<details data-det="${id}" ${state.openDet.has(id) ? 'open' : ''} class="mt-3 pt-2.5 border-t" style="border-color:var(--line)">
-    <summary class="text-xs font-medium muted flex items-center gap-1.5"><span class="chev">▶</span> 建議每人準備的原料 <span class="faint">（依 ${h.n} 人${h.real ? '' : '估算'}）</span></summary>
-    <div class="mt-2 space-y-1">
-      ${Object.entries(raw).map(([k, v]) => `<div class="flex justify-between gap-2 text-xs">
-        <span class="text-slate-300">${esc(k)}</span>
-        <span class="nowrap num"><b class="text-slate-100 font-semibold">${fmt(per(v))}</b> <span class="faint">/ 全會 ${fmt(v)}</span></span></div>`).join('')}
-      <div class="text-[11px] faint pt-1.5 leading-relaxed">加工批數：${Object.entries(crafts).map(([k, v]) => `${esc(k)} ${fmt(v)} 批（每人約 ${fmt(per(v))}）`).join('、')}</div>
-      <div class="text-[11px] muted">${esc(r.item.note)}</div>
+// 原料單位（沒列的預設「個」）
+const unitOf = name => (CONFIG.rawUnits && CONFIG.rawUnits[name]) || '個';
+
+// 做法：由基礎原料往上，一步一行「投入 → 產出」（每做一次）
+function recipeSteps(name) {
+  return chainOf(name).reverse().map(p => {
+    const rc = CONFIG.recipes[p];
+    return { text: `${Object.entries(rc.in).map(([k, v]) => `${k} ${fmt(v)}`).join(' + ')} → ${p} ${rc.out}`,
+             where: `${rc.station}${rc.time ? '・' + rc.time : ''}` };
+  });
+}
+// 原料依「做法」出現的順序排列（基礎原料在前）
+function sortedRaw(name, amount) {
+  const { raw } = expandNeeds({ [name]: amount });
+  const order = [];
+  chainOf(name).reverse().forEach(p => Object.keys(CONFIG.recipes[p].in).forEach(k => { if (!order.includes(k)) order.push(k); }));
+  return Object.fromEntries(Object.entries(raw).sort((x, y) => order.indexOf(x[0]) - order.indexOf(y[0])));
+}
+const rawList = raw => Object.entries(raw).map(([k, v]) => `${k} 約 ${fmt(v)} ${unitOf(k)}`);
+
+// 原料區塊。pledge：我的區塊傳入自己的認領量（>0 用它，否則用建議每人）；分組卡片不傳，固定用建議每人
+function rowDetails(s, r, h, pledge) {
+  const mine = pledge != null ? Number(pledge) || 0 : 0;
+  const amount = mine > 0 ? mine : r.quota;
+  const raw = sortedRaw(r.item.name, amount);
+  const guild = sortedRaw(r.item.name, r.qty);
+  const id = `row-${s.id}-${r.itemId}${pledge != null ? '-mine' : ''}`;
+  const title = mine > 0
+    ? `你認領的 ${fmt(amount)} ${r.item.unit}${r.item.name}，大約需要：`
+    : `建議每人做 ${fmt(amount)} ${r.item.unit}${r.item.name}，大約需要：`;
+  const steps = recipeSteps(r.item.name);
+  return `<details data-det="${id}" ${state.openDet.has(id) ? 'open' : ''} class="mt-3 pt-2.5 border-t w-full" style="border-color:var(--line)">
+    <summary class="text-xs font-medium muted flex items-center gap-1.5"><span class="chev">▶</span> 需要哪些原料？</summary>
+    <div class="mt-2 text-xs">
+      <div class="text-slate-300 font-medium">${esc(title)}</div>
+      <ul class="mt-1.5 space-y-1">${Object.entries(raw).map(([n, v]) => `<li class="flex justify-between gap-2">
+        <span class="text-slate-300">${esc(n)}</span><span class="nowrap num text-slate-100"><span class="faint">約</span> <b class="font-semibold">${fmt(v)}</b> <span class="muted">${esc(unitOf(n))}</span></span></li>`).join('')}</ul>
+      <div class="mt-3 text-[11px] text-slate-300">做法（每做一次）：</div>
+      <ol class="mt-1 space-y-1">${steps.map((st, i) => `<li class="text-[11px] muted leading-relaxed"><span class="faint num">${i + 1}.</span> ${esc(st.text)} <span class="faint nowrap">（${esc(st.where)}）</span></li>`).join('')}</ol>
+      <div class="mt-2.5 text-[11px] faint leading-relaxed">全公會總共需要（目標 ${fmt(r.qty)}）：${esc(rawList(guild).join('、'))}</div>
     </div>
   </details>`;
 }
@@ -675,11 +710,11 @@ function renderGroups() {
       <div class="sub ${r.have >= r.qty ? 'done' : ''} p-3.5" ${acStyle(s.color)}>
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <div class="flex items-center gap-1.5 text-[11px] font-bold"><span class="ac-dot"></span><span class="ac-text nowrap">${esc(s.id)} ${esc(s.name)}</span>${s.id === c.currentId ? '<span class="faint font-medium">・認領中</span>' : ''}</div>
+            <div class="flex items-center gap-1.5 text-[11px] font-bold"><span class="ac-dot"></span><span class="ac-text nowrap">${esc(s.id)} ${esc(s.name)}</span>${s.id === c.currentId ? '<span class="faint font-medium">・目前優先</span>' : ''}</div>
             <div class="flex items-center gap-2 flex-wrap mt-1"><h4 class="text-base md:text-lg font-bold text-slate-100">${esc(r.item.name)}</h4>${claimChip(r.have, r.qty)}</div>
           </div>
           <div class="text-right flex-none">
-            <div class="text-[11px] faint nowrap">建議每人${h.real ? '' : '（估）'}</div>
+            <div class="text-[11px] faint nowrap">建議每人</div>
             <div class="text-xl font-bold num text-slate-100 leading-tight">${fmt(r.quota)}<span class="text-xs muted font-normal ml-0.5">${esc(r.item.unit)}</span></div>
           </div>
         </div>
@@ -688,19 +723,9 @@ function renderGroups() {
         ${rowDetails(s, r, h)}
       </div>`).join('')).join('');
 
-    const recipeNames = [];
-    itemIds.forEach(id => chainOf(CONFIG.items[id].name, recipeNames));
-    const recipeHtml = recipeNames.map(n => {
-      const rc = CONFIG.recipes[n];
-      return `<div class="py-2 text-xs">
-        <div class="flex flex-wrap justify-between gap-x-2"><span class="font-bold text-slate-200">${esc(n)} <span class="faint font-normal">×${rc.out}</span></span><span class="faint nowrap">${esc(rc.station)}${rc.time ? '・' + esc(rc.time) : ''}</span></div>
-        <div class="muted mt-0.5">${Object.entries(rc.in).map(([k, v]) => `${esc(k)} ${fmt(v)}`).join(' ＋ ')}</div>
-      </div>`;
-    }).join('');
-
     const chips = members.length
       ? members.map(m => `<span class="chip break-all">${esc(m.id)}</span>`).join('')
-      : '<span class="text-xs faint">尚無人認領</span>';
+      : '<span class="text-xs faint">還沒有人加入，歡迎當第一個！</span>';
 
     return `<article class="card overflow-hidden flex flex-col" ${acStyle(g.color)}>
       <div class="group-head p-4 md:p-5 border-b" style="border-color:var(--line)">
@@ -708,11 +733,11 @@ function renderGroups() {
           <div class="flex items-center gap-2.5 min-w-0">
             <span class="text-2xl leading-none">${g.icon}</span>
             <div class="min-w-0">
-              <div class="eyebrow ac-text">GROUP ${g.id}</div>
+              <div class="eyebrow ac-text">${g.id} 組</div>
               <h3 class="text-lg font-bold text-slate-100 leading-tight">${esc(g.name)}</h3>
             </div>
           </div>
-          <span class="chip chip-ac nowrap num">${members.length} / ${g.plannedMembers} 人</span>
+          <span class="chip chip-ac nowrap num">已加入 ${members.length} 人・建議 ${g.plannedMembers} 人</span>
         </div>
         <p class="text-xs md:text-sm muted mt-2.5">${esc(g.tagline)}</p>
         <div class="mt-3 flex flex-wrap gap-1.5">${chips}</div>
@@ -720,10 +745,6 @@ function renderGroups() {
       <div class="p-4 md:p-5 space-y-3 flex-1">
         ${g.tip ? tipBox(g.tip) : ''}
         ${tasks}
-        <details data-det="recipes-${g.id}" ${state.openDet.has('recipes-' + g.id) ? 'open' : ''} class="sub px-3.5 py-2.5">
-          <summary class="text-xs font-medium muted flex items-center gap-1.5"><span class="chev">▶</span> 本組配方表（每批投入 → 產出）</summary>
-          <div class="mt-1 divide">${recipeHtml}</div>
-        </details>
       </div>
     </article>`;
   }).join('');
@@ -734,7 +755,7 @@ function renderRoster() {
   const q = $('roster-search').value.trim().toLowerCase();
   const list = state.members.filter(m => !q || m.id.toLowerCase().includes(q));
   $('roster-count').textContent = `${state.members.length} 人`;
-  const sections = [...CONFIG.groups.map(g => ({ id: g.id, title: `${g.icon} ${g.id} 組・${g.name}`, color: g.color })), { id: '', title: '尚未認領', color: null }];
+  const sections = [...CONFIG.groups.map(g => ({ id: g.id, title: `${g.icon} ${g.id} 組・${g.name}`, color: g.color })), { id: '', title: '還沒選組別', color: null }];
   const html = sections.map(sec => {
     const ms = list.filter(m => m.group === sec.id).sort((a, b) => a.id.localeCompare(b.id, 'zh-TW'));
     if (!ms.length) return '';
@@ -742,7 +763,7 @@ function renderRoster() {
       <div class="flex items-center gap-2 text-sm font-bold mb-2">${sec.color ? '<span class="ac-dot"></span>' : ''}<span class="${sec.color ? 'ac-text' : 'muted'}">${esc(sec.title)}</span><span class="faint font-normal num">${ms.length}</span></div>
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">${ms.map(m => {
         const entries = CONFIG.stages.flatMap(s => s.needs.map(n => [s, n])).filter(([s, n]) => m.reports[key(s.id, n.item)] > 0);
-        const chips = entries.length ? '<span class="faint">認領：</span>' + entries.map(([s, n]) => `<span class="nowrap">${esc(s.id)} ${esc(CONFIG.items[n.item].name)} <b class="text-slate-200 font-semibold num">${fmt(m.reports[key(s.id, n.item)])}</b></span>`).join('<span class="faint">・</span>') : '<span class="faint">尚未填認領數量</span>';
+        const chips = entries.length ? '<span class="faint">認領：</span>' + entries.map(([s, n]) => `<span class="nowrap">${esc(s.id)} ${esc(CONFIG.items[n.item].name)} <b class="text-slate-200 font-semibold num">${fmt(m.reports[key(s.id, n.item)])}</b></span>`).join('<span class="faint">・</span>') : '<span class="faint">還沒填認領數量</span>';
         const isMe = state.meId && m.id.toLowerCase() === state.meId.toLowerCase();
         return `<div class="sub px-3 py-2.5" ${isMe ? 'style="border-color: rgba(109,127,214,.45)"' : ''}>
           <div class="flex justify-between gap-2"><span class="font-bold text-slate-100 break-all">${esc(m.id)}${isMe ? ' <span class="text-xs font-medium text-indigo-200/80">（我）</span>' : ''}</span><span class="text-[11px] faint nowrap num">${esc(timeText(m.updatedAt))}</span></div>
@@ -763,20 +784,22 @@ function buildAnnouncement() {
   const c = computed();
   const L = [];
   const total = state.members.filter(m => m.group).length;
-  L.push(`🚢【${CONFIG.guildName}】公會船第二階段・分組認領（目前 ${total} 人已認領）`);
+  L.push(`🚢【${CONFIG.guildName}】公會船第二階段・分組認領（目前 ${total} 人已加入組別）`);
   L.push('為避免重複備料，開始準備前請先到看板認領組別並填寫「我認領的數量」：');
   L.push(location.href.split('#')[0]);
   L.push('');
   L.push('▍認領進度');
-  c.stages.forEach(s => L.push(`  ${s.id} ${s.name}：已認領 ${s.pct}%${s.done ? ' ✅ 已認領滿' : s.id === c.currentId ? '（認領中）' : ''}`));
+  c.stages.forEach(s => L.push(`  ${s.id} ${s.name}：已認領 ${s.pct}%${s.done ? ' ✅' : s.id === c.currentId ? '（目前優先）' : ''}`));
   L.push('');
   CONFIG.groups.forEach(g => {
     const h = c.heads[g.id];
-    L.push(`${g.icon}【${g.id} 組・${g.name}】${h.real ? `已認領 ${h.n} 人` : `尚無人認領，以 ${h.n} 人估算`}`);
+    L.push(`${g.icon}【${g.id} 組・${g.name}】已加入 ${h.claimed} 人（建議 ${g.plannedMembers} 人）`);
     c.stages.forEach(s => s.rows.filter(r => r.item.group === g.id).forEach(r => {
-      L.push(`  • [${s.id}] ${r.item.name}：已認領 ${fmt(r.have)}/${fmt(r.qty)}，${r.over ? `超出 ${fmt(r.over)}` : r.gap ? `還缺 ${fmt(r.gap)}` : '已認領完畢'}｜建議每人 ${fmt(r.quota)}`);
-      const raw = expandNeeds({ [r.item.name]: r.qty }).raw;
-      L.push(`      建議每人原料約：${Object.entries(raw).map(([k, v]) => `${k} ${fmt(Math.ceil(v / h.n))}`).join('、')}`);
+      L.push(`  • [${s.id}] ${r.item.name}：已認領 ${fmt(r.have)} / 目標 ${fmt(r.qty)}，${r.over ? `超出 ${fmt(r.over)} 個，可以少準備一些` : r.gap ? `還有 ${fmt(r.gap)} 個沒人認領` : '已全部認領完畢 ✅'}`);
+      if (r.gap > 0) {
+        const n = Math.min(r.quota, r.gap);
+        L.push(`      ${r.gap < r.quota ? `剩下的 ${fmt(n)} 個` : `建議每人 ${fmt(n)} 個`}，需要：${rawList(sortedRaw(r.item.name, n)).join('、')}`);
+      }
     }));
     L.push('');
   });
@@ -784,9 +807,12 @@ function buildAnnouncement() {
   CONFIG.stages.forEach(st => st.needs.forEach(n => { const nm = CONFIG.items[n.item].name; allNeeds[nm] = (allNeeds[nm] || 0) + n.qty; }));
   const wax = expandNeeds(allNeeds).raw['蜂蠟'] || 0;
   L.push('▍提醒');
-  L.push('1. 施工順序 2-1 → 2-2 → 2-3 → 2-4，A 組（木材+）、B 組（合金鋼錠、焦油）請優先認領並準備 2-1。');
-  L.push(`2. 厚布料、繩索共需蜂蠟約 ${fmt(wax)} 個。${CONFIG.notes.beeswax}請大家每週買滿支援 C 組！`);
-  L.push('3. 先認領再備料！已認領完畢的項目就不用再準備；準備不了時請到看板把數字改小，讓別人接手。');
+  const curStage = c.stages.find(st => st.id === c.currentId);
+  L.push(curStage
+    ? `1. 施工順序 2-1 → 2-2 → 2-3 → 2-4。目前優先：${curStage.id} ${curStage.name}，請先認領這一階段還缺的材料。`
+    : '1. 四個階段都已認領完畢，大家照自己認領的數量準備就好！');
+  L.push(`2. 厚布料、繩索共需蜂蠟約 ${fmt(wax)} 個。${CONFIG.notes.beeswax}請大家每週買滿，支援 C 組！`);
+  L.push('3. 先認領再備料！已認領完畢的項目就不用再準備；做不完時請回看板把數字改小，讓別人接手。');
   return L.join('\n');
 }
 let lastFocus = null;
@@ -828,8 +854,8 @@ document.addEventListener('click', e => {
     const gid = el.dataset.group;
     const me = myRecord();
     if (me && me.group === gid) return;
-    if (gid === '' && !confirm('確定要取消認領組別嗎？（已填的認領數量會保留）')) return;
-    save({ action: 'upsert', id: state.meId, group: gid }, gid ? `✅ 已認領 ${gid} 組` : '已取消認領');
+    if (gid === '' && !confirm('確定要退出這一組嗎？（已填的認領數量會保留）')) return;
+    save({ action: 'upsert', id: state.meId, group: gid }, gid ? `✅ 已加入 ${gid} 組` : '已退出組別');
   }
   else if (act === 'fill' || act === 'zero') {
     const k = el.dataset.key;
@@ -843,13 +869,13 @@ document.addEventListener('click', e => {
     for (const s of CONFIG.stages) for (const n of s.needs) {
       const k = key(s.id, n.item);
       const v = Number(state.draft[k] || 0);
-      if (!Number.isInteger(v) || v < 0 || v > 1000000) { state.flash = '❌ 數量必須是 0～1,000,000 的整數'; renderMine(); return; }
+      if (!Number.isInteger(v) || v < 0 || v > 1000000) { state.flash = '❌ 數量請填 0～1,000,000 的整數'; renderMine(); return; }
       reports[k] = v;
     }
     save({ action: 'upsert', id: state.meId, reports }, '✅ 認領已儲存');
   }
   else if (act === 'switch-id') {
-    if (state.dirty && !confirm('有尚未儲存的變更，確定切換？')) return;
+    if (state.dirty && !confirm('你有還沒儲存的數量，確定要切換 ID 嗎？')) return;
     state.meId = ''; localStorage.removeItem(LS_ME); state.dirty = false; state.flash = ''; renderAll();
   }
   else if (act === 'delete-me') {
