@@ -3,562 +3,801 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>瑪奇 Mobile｜公會船第二階段 30人分組作戰看板</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E🚢%3C/text%3E%3C/svg%3E">
+  <title>瑪奇 Mobile｜公會船第二階段・共用認領看板</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
-    body {
-      font-family: 'Noto Sans TC', sans-serif;
-      background-color: #0f172a;
-      color: #f8fafc;
-    }
+    body { font-family: 'Noto Sans TC', sans-serif; background-color: #0f172a; color: #f8fafc; }
     .card-glow-a { box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.25); }
     .card-glow-b { box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.25); }
     .card-glow-c { box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.25); }
     .card-glow-d { box-shadow: 0 0 25px -5px rgba(168, 85, 247, 0.25); }
-    input[type="number"]::-webkit-inner-spin-button,
-    input[type="number"]::-webkit-outer-spin-button {
-      opacity: 1;
-    }
+    .nowrap { white-space: nowrap; }
+    .bar { height: 8px; border-radius: 9999px; background: rgba(148,163,184,.15); overflow: hidden; }
+    .bar > div { height: 100%; border-radius: 9999px; transition: width .4s; }
+    details > summary { cursor: pointer; list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .chev { transform: rotate(90deg); }
+    .chev { display: inline-block; transition: transform .2s; }
+    input[type="number"] { -moz-appearance: textfield; }
+    body.modal-open { overflow: hidden; }
   </style>
 </head>
 <body class="min-h-screen pb-16">
 
-  <!-- 頂部導覽與標題 -->
   <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="px-2.5 py-0.5 text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 rounded-full">數據已核實修正版</span>
-          <span class="text-xs text-slate-400">施工順序：2-1 ➔ 2-2 ➔ 2-3 ➔ 2-4</span>
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="data-badge" class="px-2.5 py-0.5 text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full nowrap">⚠️ 依韓服數據・台服待確認</span>
+          <span class="text-xs text-slate-400 nowrap">施工順序：2-1 ➔ 2-2 ➔ 2-3 ➔ 2-4</span>
         </div>
-        <h1 class="text-2xl md:text-3xl font-black tracking-tight text-white mt-1">
-          🚢 《瑪奇 Mobile》公會船二階段・專責分組看板
-        </h1>
+        <h1 class="text-xl md:text-3xl font-black tracking-tight text-white mt-1">🚢 公會船二階段・共用認領看板</h1>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button onclick="openModal()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition flex items-center gap-2 shadow-lg shadow-indigo-600/30">
-          <span>📢</span> 產生 Discord / LINE 公告
-        </button>
-        <button onclick="resetAllProgress()" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl text-sm transition border border-slate-700">
-          重置個人進度
-        </button>
+        <button data-act="open-modal" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition flex items-center gap-2 shadow-lg shadow-indigo-600/30 nowrap">📢 產生公告</button>
+        <button data-act="refresh" id="refresh-btn" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-xl text-sm transition border border-slate-700 nowrap">🔄 重新整理</button>
+        <span id="sync-status" class="text-xs text-slate-400 nowrap">載入中…</span>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 mt-6 space-y-6">
+  <div id="demo-banner" class="hidden max-w-7xl mx-auto px-4 mt-4">
+    <div class="bg-amber-500/10 border border-amber-500/40 rounded-xl p-3 text-xs md:text-sm text-amber-200 flex flex-wrap items-center justify-between gap-2">
+      <span>🧪 <b>示範模式</b>：尚未設定 API_URL，資料只存在這台裝置，名單是假資料。設定方式請看 SETUP.md。</span>
+      <button data-act="demo-reset" class="px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 font-bold nowrap">重設示範資料</button>
+    </div>
+  </div>
 
-    <!-- 30人配置調整器與篩選列 -->
+  <div id="error-banner" class="hidden max-w-7xl mx-auto px-4 mt-4">
+    <div class="bg-rose-500/10 border border-rose-500/40 rounded-xl p-3 text-sm text-rose-200 flex flex-wrap items-center justify-between gap-2">
+      <span id="error-text"></span>
+      <button data-act="refresh" class="px-3 py-1 rounded-lg bg-rose-500/20 border border-rose-500/40 font-bold nowrap">重試</button>
+    </div>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-4 mt-5 space-y-6">
+
+    <!-- 我的認領與回報 -->
+    <section id="mine" class="bg-slate-800/70 border border-slate-700/80 rounded-2xl p-4 md:p-6">
+      <div class="text-slate-400 text-sm">載入中…</div>
+    </section>
+
+    <!-- 各階段施工進度 -->
+    <section>
+      <h2 class="text-lg font-bold text-white">🏗️ 全公會施工進度</h2>
+      <p id="data-note" class="text-xs text-amber-200/80 mt-1 mb-3"></p>
+      <div id="stages" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"></div>
+    </section>
+
+    <!-- 分組卡片 -->
+    <section>
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+        <h2 class="text-lg font-bold text-white">👥 四大專責分組</h2>
+        <div id="filters" class="flex flex-wrap gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-700 self-start"></div>
+      </div>
+      <div id="groups" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+    </section>
+
+    <!-- 認領名單 -->
     <section class="bg-slate-800/70 border border-slate-700/80 rounded-2xl p-4 md:p-6">
-      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-700/80">
-        <div>
-          <h2 class="text-lg font-bold text-white flex items-center gap-2">
-            👥 公會人數配置與組別篩選
-            <span id="total-members-badge" class="px-2.5 py-0.5 text-sm rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-              目前總計：30 人
-            </span>
-          </h2>
-          <p class="text-xs md:text-sm text-slate-400 mt-1">
-            可依實際報名狀況點擊「- / +」微調各組人數，下方**每人必交責任額**與**預估底層採集量**會自動無條件進位重算。
-          </p>
-        </div>
-
-        <!-- 視角切換 -->
-        <div class="flex flex-wrap gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-700">
-          <button onclick="setFilter('ALL')" id="filter-ALL" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white transition">全部顯示</button>
-          <button onclick="setFilter('A')" id="filter-A" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800 transition">🌲 只看 A組</button>
-          <button onclick="setFilter('B')" id="filter-B" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800 transition">⛏️ 只看 B組</button>
-          <button onclick="setFilter('C')" id="filter-C" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800 transition">🐑 只看 C組</button>
-          <button onclick="setFilter('D')" id="filter-D" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800 transition">🍄 只看 D組</button>
-        </div>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h2 class="text-lg font-bold text-white">📋 認領名單 <span id="roster-count" class="text-sm font-medium text-slate-400"></span></h2>
+        <input id="roster-search" type="search" placeholder="搜尋 ID" maxlength="20" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white w-40">
       </div>
-
-      <!-- 4組人數微調器 -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4" id="member-controls"></div>
+      <div id="roster" class="space-y-4"></div>
     </section>
-
-    <!-- 施工順序提示條 -->
-    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div class="bg-slate-800/50 border border-emerald-500/40 rounded-xl p-3">
-        <div class="text-xs font-bold text-emerald-400">STEP 1｜最優先催繳</div>
-        <div class="text-sm font-bold text-white mt-0.5">2-1 船體外壁完成</div>
-        <div class="text-xs text-slate-400 mt-1">鋼錠 900 / 焦油 1000 / 木材+ 3000</div>
-      </div>
-      <div class="bg-slate-800/50 border border-amber-500/40 rounded-xl p-3">
-        <div class="text-xs font-bold text-amber-400">STEP 2｜第二波推進</div>
-        <div class="text-sm font-bold text-white mt-0.5">2-2 營火安裝</div>
-        <div class="text-xs text-slate-400 mt-1">鋼錠 1080 / 高級木材 1080 / 膠水 1000</div>
-      </div>
-      <div class="bg-slate-800/50 border border-blue-500/40 rounded-xl p-3">
-        <div class="text-xs font-bold text-blue-400">STEP 3｜中期加工</div>
-        <div class="text-sm font-bold text-white mt-0.5">2-3 多面船帆安裝</div>
-        <div class="text-xs text-slate-400 mt-1">堅硬木材 420 / 厚布 800 / 繩索 500</div>
-      </div>
-      <div class="bg-slate-800/50 border border-purple-500/40 rounded-xl p-3">
-        <div class="text-xs font-bold text-purple-400">STEP 4｜收尾衝刺</div>
-        <div class="text-sm font-bold text-white mt-0.5">2-4 外部塗裝及收尾</div>
-        <div class="text-xs text-slate-400 mt-1">催化劑 500 / 焦油 1000 / 蘑菇精華 3000</div>
-      </div>
-    </section>
-
-    <!-- 四大專責分組卡片區 -->
-    <section id="groups-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></section>
-
   </main>
 
-  <!-- 群組公告 Modal -->
-  <div id="announcement-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="text-lg font-bold text-white">📢 一鍵複製公會群組公告（已依目前人數計算）</h3>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+  <!-- 公告 Modal -->
+  <div id="modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-3 md:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-4 md:p-6 shadow-2xl flex flex-col gap-3 max-h-[92vh]">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
+        <h3 id="modal-title" class="text-base md:text-lg font-bold text-white">📢 一鍵複製公會群組公告</h3>
+        <button data-act="close-modal" aria-label="關閉" class="text-slate-400 hover:text-white text-2xl font-bold leading-none px-2">&times;</button>
       </div>
-      <textarea id="announcement-text" rows="16" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs md:text-sm text-slate-200 font-mono focus:outline-none"></textarea>
+      <p class="text-xs text-slate-400">依目前「實際認領人數」計算；尚無人認領的組別以建議人數估算。</p>
+      <textarea id="announce-text" readonly class="w-full flex-1 min-h-[40vh] bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs md:text-sm text-slate-200 font-mono focus:outline-none resize-none"></textarea>
       <div class="flex justify-end gap-3">
-        <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm font-medium hover:bg-slate-700">關閉</button>
-        <button onclick="copyAnnouncement()" id="copy-btn" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition">
-          📋 複製公告文字
-        </button>
+        <button data-act="close-modal" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm font-medium hover:bg-slate-700">關閉</button>
+        <button data-act="copy" id="copy-btn" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition">📋 複製公告文字</button>
       </div>
     </div>
   </div>
 
-  <script>
-    // 經核實後的公會船二階段完整資料結構
-    const defaultGroups = [
-      {
-        id: 'A',
-        name: 'A組：伐木建材隊',
-        icon: '🌲',
-        color: 'emerald',
-        glowClass: 'card-glow-a',
-        defaultMembers: 9,
-        tagline: '負責 2-1、2-2、2-3 所有木材加工，砍樹與收集樹液主力！',
-        actionGuide: '看到樹就砍！優先交出「木材+」推 2-1，同時存「高級原木+」、「堅硬原木」與「樹液」。',
-        tasks: [
-          {
-            id: 'wood_plus',
-            name: '木材+',
-            stage: '2-1 最優先',
-            stageColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-            totalGuild: 3000,
-            unit: '個',
-            rawNote: '由「木材」與「原木/樹液」持續向上加工，請優先交付推進 2-1',
-            rawItems: [
-              { name: '樹液 (全階段共用預估)', total: 960 },
-              { name: '基礎原木 (木材線預估)', total: 800 }
-            ]
-          },
-          {
-            id: 'high_wood',
-            name: '高級木材',
-            stage: '2-2 階段',
-            stageColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-            totalGuild: 1080,
-            unit: '個',
-            rawNote: '採集高級原木加工製作',
-            rawItems: [
-              { name: '高級原木', total: 810 }
-            ]
-          },
-          {
-            id: 'hard_wood',
-            name: '堅硬木材',
-            stage: '2-3 階段',
-            stageColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-            totalGuild: 420,
-            unit: '個',
-            rawNote: '高階木材合成（需高級木材+、堅硬原木、樹液）',
-            rawItems: [
-              { name: '高級原木+', total: 560 },
-              { name: '堅硬原木', total: 180 },
-              { name: '樹液', total: 420 }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'B',
-        name: 'B組：鋼鐵焦油隊',
-        icon: '⛏️',
-        color: 'amber',
-        glowClass: 'card-glow-b',
-        defaultMembers: 8,
-        tagline: '包辦 2-1、2-2 合金鋼錠與 2-1、2-4 焦油，開局破冰關鍵組！',
-        actionGuide: '專門挖鐵礦、銅礦、煤炭與黏土，並砍普通原木熬焦油。2-1 需要先交 900 鋼錠 + 1,000 焦油！',
-        tasks: [
-          {
-            id: 'alloy_steel',
-            name: '合金鋼錠',
-            stage: '2-1 (900) & 2-2 (1080)',
-            stageColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-            totalGuild: 1980,
-            unit: '個',
-            rawNote: '先交 900 個解鎖 2-1，再交 1,080 個解鎖 2-2',
-            rawItems: [
-              { name: '鐵錠', total: 80 },
-              { name: '銅礦石', total: 400 },
-              { name: '煤炭', total: 320 }
-            ]
-          },
-          {
-            id: 'tar',
-            name: '焦油',
-            stage: '2-1 (1000) & 2-4 (1000)',
-            stageColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-            totalGuild: 2000,
-            unit: '個',
-            rawNote: '使用「原木 + 黏土」批量熬製（先交 1,000 個給 2-1）',
-            rawItems: [
-              { name: '普通原木 (焦油專用)', total: 1600 },
-              { name: '黏土', total: 400 }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'C',
-        name: 'C組：紡織製革隊',
-        icon: '🐑',
-        color: 'blue',
-        glowClass: 'card-glow-c',
-        defaultMembers: 7,
-        tagline: '負責 2-2 膠水與 2-3 船帆布料繩索，注意每週買滿蜂蠟！',
-        actionGuide: '打獵刷高級生皮、薅羊毛、拔長莖！⚠️ 請全公會成員每週順手買「蜂蠟」支援本組做厚布。',
-        tasks: [
-          {
-            id: 'glue',
-            name: '膠水',
-            stage: '2-2 階段',
-            stageColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-            totalGuild: 1000,
-            unit: '個',
-            rawNote: '使用「高級生皮 + 裝水的瓶子」批量合成',
-            rawItems: [
-              { name: '高級生皮', total: 240 },
-              { name: '裝水的瓶子', total: 104 }
-            ]
-          },
-          {
-            id: 'thick_cloth',
-            name: '厚布',
-            stage: '2-3 階段',
-            stageColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-            totalGuild: 800,
-            unit: '個',
-            rawNote: '使用「厚羊毛 + 高級羊毛 + 蜂蠟」合成（⚠️蜂蠟有購買限制）',
-            rawItems: [
-              { name: '厚羊毛', total: 540 },
-              { name: '高級羊毛', total: 1080 },
-              { name: '蜂蠟 (可請全公會支援)', total: 50 }
-            ]
-          },
-          {
-            id: 'rope',
-            name: '繩索',
-            stage: '2-3 階段',
-            stageColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-            totalGuild: 500,
-            unit: '個',
-            rawNote: '大量拔草取得「長莖」後於紡織台搓繩索',
-            rawItems: [
-              { name: '長莖', total: 4500 }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'D',
-        name: 'D組：蘑菇煉金隊',
-        icon: '🍄',
-        color: 'purple',
-        glowClass: 'card-glow-d',
-        defaultMembers: 6,
-        tagline: '專攻 2-4 最終收尾階段，採蘑菇與魔力素材特攻隊！',
-        actionGuide: '在 2-1～2-3 推進期間，專心採集壯壯蘑菇孢子、魔力石頭、魔力藥草與閃亮苔蘚並完成精煉！',
-        tasks: [
-          {
-            id: 'mushroom_essence',
-            name: '壯壯蘑菇精華',
-            stage: '2-4 收尾階段',
-            stageColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-            totalGuild: 3000,
-            unit: '個',
-            rawNote: '採集「壯壯蘑菇孢子」後進行批量精煉產出',
-            rawItems: [
-              { name: '壯壯蘑菇孢子', total: 240 }
-            ]
-          },
-          {
-            id: 'mana_catalyst',
-            name: '魔力催化劑',
-            stage: '2-4 收尾階段',
-            stageColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-            totalGuild: 500,
-            unit: '個',
-            rawNote: '使用「附魔力的石頭 + 魔力藥草 + 閃亮苔蘚」合成',
-            rawItems: [
-              { name: '附魔力的石頭', total: 100 },
-              { name: '魔力藥草', total: 100 },
-              { name: '閃亮苔蘚', total: 50 }
-            ]
-          }
-        ]
-      }
-    ];
+<script>
+/* =====================================================================
+ * ① 後端網址：照 SETUP.md 部署 Apps Script 後，把網址貼在這裡。
+ *    留空 = 示範模式（資料只存在本機瀏覽器，可先預覽）。
+ * ===================================================================== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbyDQFep7cVt_zk6xg5iZANYKStYSf2hVRh1LfPd6FFjEuZ0PrFPoybDNP2MUl7xsMAnLA/exec';
+const REFRESH_MS = 45000;
 
-    let state = {
-      members: { A: 9, B: 8, C: 7, D: 6 },
-      filter: 'ALL',
-      progress: {}
-    };
+/* =====================================================================
+ * ② 遊戲資料設定（唯一需要改數字的地方）
+ *    數字已於 2026/10/21 依韓服資料核實（台服第 2 階段待進遊戲確認），之後要改直接改這裡。
+ *    - stages ：各階段需要的交付品與數量（qty，全公會總數）
+ *    - items  ：交付品屬於哪一組、說明；verify = 仍待確認的地方
+ *    - recipes：加工配方（每批），網頁會自動往下拆出每人要準備的原料
+ *    - groups ：組別資訊、建議人數（plannedMembers，沒人認領時用來估算）
+ *    注意：items 的 key 與 stages 的 id 會存進試算表，上線後請不要再改名。
+ * ===================================================================== */
+const CONFIG = {
+  // 頁首顯示的資料狀態；台服進遊戲核對完成後可改成 '已核實'
+  DATA_STATUS: '依韓服數據・台服待確認',
+  DATA_NOTE: '交付數量與配方依韓服資料（台服 1-1 曾與韓服完全相同），台服第 2 階段尚待進遊戲核對；原料量未計入大成功，實際會略少。查證日期 2026/10/21。',
 
-    // 載入 LocalStorage
-    function loadState() {
-      const saved = localStorage.getItem('mabinogi_ship_stage2_v2');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed.members) state.members = parsed.members;
-          if (parsed.progress) state.progress = parsed.progress;
-        } catch (e) {}
-      }
+  // 各階段交付品（qty = 全公會總數）
+  stages: [
+    { id: '2-1', name: '船體外壁完成', label: 'STEP 1｜最優先催繳', color: 'emerald',
+      needs: [ { item: 'wood_plus', qty: 3000 }, { item: 'alloy_steel', qty: 900 }, { item: 'tar', qty: 1000 } ] },
+    { id: '2-2', name: '營火安裝', label: 'STEP 2｜第二波推進', color: 'amber',
+      needs: [ { item: 'alloy_steel', qty: 1080 }, { item: 'high_wood', qty: 1080 }, { item: 'glue', qty: 1000 } ] },
+    { id: '2-3', name: '多面船帆安裝', label: 'STEP 3｜中期加工', color: 'blue',
+      needs: [ { item: 'hard_wood', qty: 420 }, { item: 'thick_cloth', qty: 800 }, { item: 'rope', qty: 500 } ] },
+    { id: '2-4', name: '外部塗裝及收尾', label: 'STEP 4｜收尾衝刺', color: 'purple',
+      needs: [ { item: 'mana_detonator', qty: 500 }, { item: 'tar', qty: 1000 }, { item: 'mushroom_juice', qty: 3000 } ] }
+  ],
+
+  // 交付品：key 會存進試算表，上線後不要改名；name 必須對應下方 recipes 的名稱
+  // verify：仍待確認的地方（會顯示「待確認」標記）
+  items: {
+    wood_plus:      { name: '木材+',       group: 'A', unit: '個', note: '原木 → 木材 → 木材+，2-1 最大宗，請優先交付' },
+    high_wood:      { name: '高級木材',     group: 'A', unit: '個', note: '中間會用掉木材+；也可向艾爾文（杜加德走廊）用炒蔬菜 1 換 4 個，每日 2 次' },
+    hard_wood:      { name: '堅硬木材',     group: 'A', unit: '個', note: '最深的加工鏈：木材 → 木材+ → 高級木材 → 高級木材+ → 堅硬木材，請提早開工' },
+    alloy_steel:    { name: '合金鋼錠',     group: 'B', unit: '個', note: '2-1 交 900、2-2 交 1,080；也可向佛格斯（提爾克那）用鋼錠 2 換 1 個，每日 4 次' },
+    tar:            { name: '焦油',         group: 'B', unit: '個', note: '2-1 交 1,000、2-4 再交 1,000；金屬加工 Lv.2，每批 4 小時，不能交易只能自己做' },
+    glue:           { name: '膠水',         group: 'C', unit: '個', note: '藥品加工 Lv.2，每批 4 小時' },
+    thick_cloth:    { name: '厚布料',       group: 'C', unit: '個', note: '需要蜂蠟（有購買上限），請提早囤', verify: '每批厚實羊毛數量：韓服加工卡為 50，台服資料庫寫 1，請進遊戲確認' },
+    rope:           { name: '繩索',         group: 'C', unit: '個', note: '長莖稈 → 植物纖維 → 繩索，都在布料加工設備 Lv.3；繩索也要蜂蠟' },
+    mana_detonator: { name: '魔力起爆劑',   group: 'D', unit: '個', note: '藥品加工 Lv.3', verify: '加工時間來源不一（1／1.5／3 小時）；「閃閃發亮的苔蘚」與「閃亮苔蘚」台服名稱待確認' },
+    mushroom_juice: { name: '壯壯蘑菇汁液', group: 'D', unit: '個', note: '可直接向麗莎（提爾克那）、馬努斯（杜巴頓）購買，每週 30 次' }
+  },
+
+  // 配方（每批）：out = 每批產出數；in = 每批投入；未列配方的就是底層原料
+  recipes: {
+    '鐵錠':       { out: 3,  in: { '鐵礦石': 10 }, station: '金屬加工 Lv.1', time: '1 分' },
+    '鋼錠':       { out: 3,  in: { '鐵錠': 3, '煤炭': 4 }, station: '金屬加工 Lv.1', time: '約 11–16 分' },
+    '合金鋼錠':   { out: 3,  in: { '鋼錠': 3, '銅礦石': 15, '煤炭': 8 }, station: '金屬加工 Lv.2', time: '約 3 小時 20 分–4 小時' },
+    '焦油':       { out: 5,  in: { '原木': 50, '黏土': 25 }, station: '金屬加工 Lv.2', time: '4 小時' },
+    '木材':       { out: 3,  in: { '原木': 10 }, station: '木材加工 Lv.1', time: '約 2 分' },
+    '木材+':      { out: 3,  in: { '木材': 3, '樹液': 4 }, station: '木材加工 Lv.1', time: '13 分' },
+    '高級木材':   { out: 3,  in: { '木材+': 3, '高級原木': 15, '樹液': 8 }, station: '木材加工 Lv.2', time: '3 小時 20 分' },
+    '高級木材+':  { out: 3,  in: { '高級木材': 4, '高級原木+': 20, '樹液': 12 }, station: '木材加工 Lv.3', time: '約 10 小時' },
+    '堅硬木材':   { out: 3,  in: { '高級木材+': 15, '堅硬原木': 30, '樹液': 30 }, station: '木材加工 Lv.3', time: '約 8 小時' },
+    '膠水':       { out: 5,  in: { '高級生皮': 30, '裝水的瓶子': 10 }, station: '藥品加工 Lv.2', time: '4 小時' },
+    '厚布料':     { out: 3,  in: { '厚實羊毛': 50, '高級羊毛': 100, '蜂蠟': 2 }, station: '布料加工 Lv.2', time: '4 小時', verify: '厚實羊毛 50 或 1 待確認' },
+    '植物纖維':   { out: 10, in: { '長莖稈': 150 }, station: '布料加工 Lv.3', time: '1 小時' },
+    '繩索':       { out: 3,  in: { '植物纖維': 45, '蜂蠟': 4 }, station: '布料加工 Lv.3', time: '2 小時' },
+    '魔力起爆劑': { out: 10, in: { '蘊含魔力的石頭': 50, '魔力藥草': 50, '閃閃發亮的苔蘚': 25 }, station: '藥品加工 Lv.3', time: '約 3 小時', verify: '加工時間待確認' },
+    '壯壯蘑菇汁液': { out: 5, in: { '壯壯蘑菇孢子': 10, '裝水的瓶子': 1 }, station: '藥品加工 Lv.1', time: '10 分' }
+  },
+  // 時間為無生活會員的基準，有會員約減半
+
+  groups: [
+    { id: 'A', name: '伐木建材隊', icon: '🌲', color: 'emerald', plannedMembers: 9,
+      tagline: '負責 2-1 木材+、2-2 高級木材、2-3 堅硬木材，全船用量最大的一組！',
+      actionGuide: '看到樹就砍！先衝 2-1 木材+（原木 10,000、樹液 4,000）。2-3 堅硬木材要樹液約 2.4 萬、高級原木+ 1.4 萬（伐木 Lv.20 甲冑樹）、堅硬原木 4,200，請提早囤。樹液可向吉爾摩買（每週 30 個），或向特蕾西用高級原木 1 換 4 個（每日 5 次）。' },
+    { id: 'B', name: '鋼鐵焦油隊', icon: '⛏️', color: 'amber', plannedMembers: 8,
+      tagline: '包辦 2-1、2-2 合金鋼錠與 2-1、2-4 焦油，開局破冰關鍵組！',
+      actionGuide: '挖鐵礦、銅礦、煤炭、黏土，並砍原木熬焦油。2-1 要先交 900 合金鋼錠 + 1,000 焦油！艾頓（班克爾）的鐵礦石／銅礦石／煤炭各每週可買 30 個；佛格斯可用鋼錠 2 換合金鋼錠 1（每日 4 次）。焦油每批 4 小時，記得掛機排程。' },
+    { id: 'C', name: '紡織製革隊', icon: '🐑', color: 'blue', plannedMembers: 7,
+      tagline: '負責 2-2 膠水與 2-3 厚布料、繩索，蜂蠟是最大瓶頸！',
+      actionGuide: '打獵刷高級生皮、剪厚實羊毛／高級羊毛、大量收割長莖稈（繩索要約 11 萬根）。⚠️ 蜂蠟共需約 1,202 個：瓦爾特（杜巴頓）、康納（庫漢）、吉爾摩（班克爾）雜貨店每個 3,600 金幣，每家每角色每週 30 個、需生活力 7,000（三家是否共用上限待確認），請全公會每週順手買來支援！高級生皮：康納／麥爾坎／瓦爾特各每週 30 個。' },
+    { id: 'D', name: '蘑菇煉金隊', icon: '🍄', color: 'purple', plannedMembers: 6,
+      tagline: '專攻 2-4 魔力起爆劑與壯壯蘑菇汁液，收尾特攻隊！',
+      actionGuide: '趁 2-1～2-3 期間先囤貨：壯壯蘑菇孢子 6,000、蘊含魔力的石頭 2,500（採礦 Lv.20 白銅／銀礦脈）、魔力藥草 2,500、閃閃發亮的苔蘚 1,250（採蘑菇少量掉落）。壯壯蘑菇汁液與魔力藥草都可向麗莎（提爾克那）、馬努斯（杜巴頓）購買，每週各 30 次，每週記得買滿！' }
+  ]
+};
+/* ======================== 以下為程式，一般不需修改 ======================== */
+
+const MAX_ID_LEN = 20;
+const LS_ME = 'mmship2_me_id';
+const LS_DEMO = 'mmship2_demo_db';
+
+// Tailwind 樣式（字串需完整寫出，CDN 才會產生）
+const COLORS = {
+  emerald: { border: 'border-emerald-500/40', text: 'text-emerald-400', soft: 'text-emerald-300', tag: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', bar: 'bg-emerald-500', head: 'from-emerald-950/80 to-slate-900', on: 'bg-emerald-600 border-emerald-400 text-white', glow: 'card-glow-a' },
+  amber:   { border: 'border-amber-500/40',   text: 'text-amber-400',   soft: 'text-amber-300',   tag: 'bg-amber-500/20 text-amber-300 border-amber-500/40',       bar: 'bg-amber-500',   head: 'from-amber-950/80 to-slate-900',   on: 'bg-amber-600 border-amber-400 text-white',     glow: 'card-glow-b' },
+  blue:    { border: 'border-blue-500/40',    text: 'text-blue-400',    soft: 'text-blue-300',    tag: 'bg-blue-500/20 text-blue-300 border-blue-500/40',          bar: 'bg-blue-500',    head: 'from-blue-950/80 to-slate-900',    on: 'bg-blue-600 border-blue-400 text-white',       glow: 'card-glow-c' },
+  purple:  { border: 'border-purple-500/40',  text: 'text-purple-400',  soft: 'text-purple-300',  tag: 'bg-purple-500/20 text-purple-300 border-purple-500/40',    bar: 'bg-purple-500',  head: 'from-purple-950/80 to-slate-900',  on: 'bg-purple-600 border-purple-400 text-white',   glow: 'card-glow-d' }
+};
+
+const DEMO = !API_URL;
+const state = {
+  members: [],          // [{id, group, reports:{'2-1:wood_plus':300}, updatedAt}]
+  loaded: false,
+  loading: false,
+  saving: false,
+  lastSync: null,
+  error: '',
+  filter: 'ALL',
+  meId: localStorage.getItem(LS_ME) || '',
+  draft: {},            // 我的回報草稿
+  dirty: false,
+  showAll: false,
+  flash: '',
+  openDet: new Set()   // 記住展開中的區塊，自動更新時不會收起
+};
+
+/* ---------- 小工具 ---------- */
+const $ = id => document.getElementById(id);
+const fmt = n => Number(n || 0).toLocaleString('zh-TW');
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"'`]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]));
+}
+const groupById = id => CONFIG.groups.find(g => g.id === id);
+const key = (stageId, itemId) => `${stageId}:${itemId}`;
+function cleanId(raw) {
+  const id = String(raw || '').replace(/[\u0000-\u001F\u007F]/g, '').trim();
+  if (!id) return { error: '請輸入遊戲 ID' };
+  if (id.length > MAX_ID_LEN) return { error: `遊戲 ID 最多 ${MAX_ID_LEN} 個字` };
+  if (/^[=+\-@]/.test(id)) return { error: '遊戲 ID 不能以 = + - @ 開頭' };
+  return { id };
+}
+function timeText(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+const pct = (a, b) => b > 0 ? Math.min(100, Math.floor(a / b * 100)) : 0;
+const VERIFY_BADGE = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 nowrap align-middle">待確認</span>';
+
+/* 依配方把交付品往下拆成「加工批數」與「底層原料」（不計大成功）。
+ * needs = { '合金鋼錠': 900, ... }，回傳 { crafts: {產物: 批數}, raw: {原料: 數量} } */
+function expandNeeds(needs) {
+  const R = CONFIG.recipes;
+  const need = { ...needs };
+  const crafts = {};
+  for (let guard = 0; guard < 100; guard++) {
+    const pending = Object.keys(need).filter(p => R[p] && need[p] > 0);
+    // 先處理「沒有被其他待處理產物當作原料」的產物（由上往下拆，與 calc.py 相同）
+    const p = pending.find(x => !pending.some(q => q !== x && R[q].in[x]));
+    if (!p) break;
+    const batches = Math.ceil(need[p] / R[p].out);
+    crafts[p] = batches;
+    for (const [k, v] of Object.entries(R[p].in)) need[k] = (need[k] || 0) + v * batches;
+    delete need[p];
+  }
+  const raw = {};
+  for (const [k, v] of Object.entries(need)) if (v > 0 && !R[k]) raw[k] = v;
+  return { crafts, raw };
+}
+// 某交付品的加工鏈上用到的所有配方名稱
+function chainOf(name, out = []) {
+  const r = CONFIG.recipes[name];
+  if (!r || out.includes(name)) return out;
+  out.push(name);
+  Object.keys(r.in).forEach(k => chainOf(k, out));
+  return out;
+}
+
+/* ---------- 計算 ---------- */
+function computed() {
+  const totals = {};
+  const claimed = { A: [], B: [], C: [], D: [] };
+  for (const m of state.members) {
+    if (claimed[m.group]) claimed[m.group].push(m);
+    for (const [k, v] of Object.entries(m.reports || {})) totals[k] = (totals[k] || 0) + (Number(v) || 0);
+  }
+  // 每組有效人數：有人認領用實際人數，否則用建議人數估算
+  const heads = {};
+  for (const g of CONFIG.groups) {
+    const n = claimed[g.id].length;
+    heads[g.id] = { n: n || g.plannedMembers, real: n > 0 };
+  }
+  const stages = CONFIG.stages.map(s => {
+    let got = 0, need = 0;
+    const rows = s.needs.map(nd => {
+      const item = CONFIG.items[nd.item];
+      const have = totals[key(s.id, nd.item)] || 0;
+      got += Math.min(have, nd.qty); need += nd.qty;
+      return { ...nd, item, itemId: nd.item, have, quota: Math.ceil(nd.qty / heads[item.group].n), pct: pct(have, nd.qty) };
+    });
+    return { ...s, rows, pct: pct(got, need), done: got >= need };
+  });
+  const current = stages.find(s => !s.done);
+  return { totals, claimed, heads, stages, currentId: current ? current.id : null };
+}
+
+/* ---------- 資料存取（雲端 / 示範） ---------- */
+function demoDb() {
+  try { const d = JSON.parse(localStorage.getItem(LS_DEMO)); if (Array.isArray(d)) return d; } catch (e) {}
+  const now = new Date().toISOString();
+  const seed = [
+    ['示範・木頭人', 'A', { '2-1:wood_plus': 420, '2-2:high_wood': 60 }],
+    ['示範・樵夫', 'A', { '2-1:wood_plus': 333 }],
+    ['示範・小松鼠', 'A', { '2-1:wood_plus': 180 }],
+    ['示範・礦工老王', 'B', { '2-1:alloy_steel': 300, '2-1:tar': 250 }],
+    ['示範・打鐵仔', 'B', { '2-1:alloy_steel': 200, '2-1:tar': 400 }],
+    ['示範・<b>XSS</b>', 'B', { '2-1:tar': 50 }],
+    ['示範・剪羊毛', 'C', { '2-2:glue': 120 }],
+    ['示範・繩結', 'C', {}],
+    ['示範・菇菇', 'D', { '2-4:mushroom_juice': 200 }],
+    ['示範・路人', '', { '2-1:wood_plus': 30 }]
+  ].map(([id, group, reports]) => ({ id, group, reports, updatedAt: now }));
+  localStorage.setItem(LS_DEMO, JSON.stringify(seed));
+  return seed;
+}
+
+async function apiGet() {
+  if (DEMO) { await new Promise(r => setTimeout(r, 150)); return { ok: true, members: demoDb() }; }
+  const res = await fetch(`${API_URL}${API_URL.includes('?') ? '&' : '?'}t=${Date.now()}`, { method: 'GET', cache: 'no-store' });
+  if (!res.ok) throw new Error(`伺服器回應 ${res.status}`);
+  return res.json();
+}
+
+async function apiPost(body) {
+  if (DEMO) {
+    await new Promise(r => setTimeout(r, 200));
+    const db = demoDb();
+    const lower = body.id.toLowerCase();
+    let i = db.findIndex(m => m.id.toLowerCase() === lower);
+    if (body.action === 'delete') { if (i >= 0) db.splice(i, 1); }
+    else {
+      if (i < 0) { db.push({ id: body.id, group: '', reports: {}, updatedAt: '' }); i = db.length - 1; }
+      const m = db[i];
+      if ('group' in body) m.group = body.group;
+      if (body.reports) for (const [k, v] of Object.entries(body.reports)) { if (v > 0) m.reports[k] = v; else delete m.reports[k]; }
+      m.updatedAt = new Date().toISOString();
     }
+    localStorage.setItem(LS_DEMO, JSON.stringify(db));
+    return { ok: true, members: db };
+  }
+  // text/plain = 「簡單請求」，不會觸發 CORS 預檢；Apps Script 會 302 轉址，fetch 會自動跟隨
+  const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`伺服器回應 ${res.status}`);
+  return res.json();
+}
 
-    function saveState() {
-      localStorage.setItem('mabinogi_ship_stage2_v2', JSON.stringify(state));
-    }
+function acceptData(data) {
+  if (!data || !data.ok) throw new Error((data && data.error) || '資料格式錯誤');
+  state.members = (data.members || []).filter(m => m && m.id).map(m => ({
+    id: String(m.id), group: ['A', 'B', 'C', 'D'].includes(m.group) ? m.group : '',
+    reports: m.reports && typeof m.reports === 'object' ? m.reports : {}, updatedAt: m.updatedAt || ''
+  }));
+  state.loaded = true; state.error = ''; state.lastSync = new Date();
+}
 
-    function changeMemberCount(groupId, delta) {
-      const next = Math.max(1, state.members[groupId] + delta);
-      state.members[groupId] = next;
-      saveState();
-      renderAll();
-    }
+async function refresh() {
+  if (state.loading || state.saving) return;
+  state.loading = true; renderStatus();
+  try { acceptData(await apiGet()); }
+  catch (e) { state.error = `讀取失敗：${e.message || e}（請檢查網路或 API 網址）`; }
+  state.loading = false;
+  renderAll();
+}
 
-    function setFilter(filterId) {
-      state.filter = filterId;
-      ['ALL', 'A', 'B', 'C', 'D'].forEach(id => {
-        const btn = document.getElementById(`filter-${id}`);
-        if (id === filterId) {
-          btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white transition';
-        } else {
-          btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800 transition';
-        }
-      });
-      renderGroups();
-    }
+async function save(body, okMsg) {
+  state.saving = true; state.flash = ''; renderStatus(); renderMine();
+  try {
+    acceptData(await apiPost(body));
+    state.dirty = false; state.flash = okMsg || '✅ 已儲存';
+  } catch (e) {
+    state.flash = `❌ 儲存失敗：${e.message || e}`;
+  }
+  state.saving = false;
+  renderAll();
+}
 
-    function toggleTaskDone(taskId, quota) {
-      const current = state.progress[taskId] || { done: false, count: 0 };
-      current.done = !current.done;
-      if (current.done) current.count = quota;
-      state.progress[taskId] = current;
-      saveState();
-      renderGroups();
-    }
+/* ---------- 我的資料 ---------- */
+const myRecord = () => state.members.find(m => m.id.toLowerCase() === state.meId.toLowerCase());
+function syncDraft() {
+  if (state.dirty) return;
+  const me = myRecord();
+  state.draft = me ? { ...me.reports } : {};
+}
 
-    function updateTaskCount(taskId, value, quota) {
-      const num = Math.max(0, parseInt(value) || 0);
-      state.progress[taskId] = {
-        count: num,
-        done: num >= quota
-      };
-      saveState();
-      renderGroups();
-    }
+/* ---------- 畫面：狀態列 ---------- */
+function renderStatus() {
+  const s = $('sync-status');
+  if (state.saving) s.textContent = '儲存中…';
+  else if (state.loading) s.textContent = '更新中…';
+  else if (state.lastSync) s.textContent = `${DEMO ? '示範資料' : '已同步'} ${timeText(state.lastSync.toISOString())}`;
+  else s.textContent = '';
+  $('refresh-btn').disabled = state.loading || state.saving;
+  $('refresh-btn').classList.toggle('opacity-50', state.loading || state.saving);
+  $('demo-banner').classList.toggle('hidden', !DEMO);
+  $('error-banner').classList.toggle('hidden', !state.error);
+  $('error-text').textContent = state.error;
+  const verified = CONFIG.DATA_STATUS === '已核實';
+  $('data-badge').textContent = verified ? '✅ 數據已核實' : `⚠️ ${CONFIG.DATA_STATUS}`;
+  $('data-note').textContent = verified ? '' : `ℹ️ ${CONFIG.DATA_NOTE}`;
+}
 
-    function resetAllProgress() {
-      if (confirm('確定要清空你個人的打勾與數量紀錄嗎？（人數配置會保留）')) {
-        state.progress = {};
-        saveState();
-        renderGroups();
-      }
-    }
+/* ---------- 畫面：我的認領 ---------- */
+function renderMine() {
+  const el = $('mine');
+  // 使用者正在輸入時不要重繪，避免打字被刷掉
+  if (el.contains(document.activeElement) && document.activeElement.matches('input[type=number]') && !state.saving) return;
 
-    function renderControls() {
-      const total = Object.values(state.members).reduce((a, b) => a + b, 0);
-      const badge = document.getElementById('total-members-badge');
-      badge.textContent = `目前總計：${total} 人`;
-      badge.className = total === 30
-        ? 'px-2.5 py-0.5 text-sm rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-        : 'px-2.5 py-0.5 text-sm rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40';
+  if (!state.loaded && !state.error) { el.innerHTML = '<div class="text-slate-400 text-sm">⏳ 載入公會資料中…</div>'; return; }
 
-      const container = document.getElementById('member-controls');
-      container.innerHTML = defaultGroups.map(g => `
-        <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 flex items-center justify-between">
-          <div>
-            <div class="text-xs text-slate-400">${g.icon}${g.name.split('：')[0]}</div>
-            <div class="text-sm font-bold text-white">${g.name.split('：')[1]}</div>
+  if (!state.meId) {
+    el.innerHTML = `
+      <h2 class="text-lg font-bold text-white">🙋 我要認領</h2>
+      <p class="text-sm text-slate-400 mt-1">輸入你的遊戲 ID，就能認領組別、回報已交數量。ID 會記在這台裝置上，下次不用再打。</p>
+      <form id="id-form" class="mt-3 flex flex-col sm:flex-row gap-2 max-w-md">
+        <input id="id-input" maxlength="${MAX_ID_LEN}" autocomplete="nickname" placeholder="你的遊戲 ID" class="flex-1 bg-slate-900 border border-slate-600 rounded-xl px-3 py-2.5 text-white">
+        <button class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-white nowrap">開始</button>
+      </form>
+      <p id="id-error" class="text-sm text-rose-300 mt-2"></p>`;
+    return;
+  }
+
+  const c = computed();
+  const me = myRecord();
+  const myGroup = me ? me.group : '';
+  const g = groupById(myGroup);
+
+  const groupBtns = CONFIG.groups.map(gr => {
+    const on = gr.id === myGroup;
+    const col = COLORS[gr.color];
+    return `<button data-act="claim" data-group="${gr.id}" ${state.saving ? 'disabled' : ''}
+      class="rounded-xl border px-3 py-2.5 text-left transition ${on ? col.on : 'bg-slate-900 border-slate-700 hover:border-slate-500 text-slate-200'}">
+      <div class="text-sm font-black nowrap">${gr.icon} ${gr.id}組${on ? ' ✓' : ''}</div>
+      <div class="text-xs ${on ? 'text-white/80' : 'text-slate-400'} nowrap">${esc(gr.name)}・${c.claimed[gr.id].length} 人</div>
+    </button>`;
+  }).join('');
+
+  let rowsHtml = '';
+  for (const s of c.stages) {
+    const rows = s.rows.filter(r => state.showAll || r.item.group === myGroup);
+    if (!rows.length) continue;
+    const scol = COLORS[s.color];
+    rowsHtml += `<div class="mt-3">
+      <div class="flex items-center gap-2 text-xs font-bold ${scol.text}">${esc(s.id)} ${esc(s.name)} ${s.id === c.currentId ? '<span class="px-1.5 py-0.5 rounded bg-white/10 text-white">進行中</span>' : ''}</div>
+      <div class="mt-1.5 space-y-2">${rows.map(r => {
+        const k = key(s.id, r.itemId);
+        const val = Number(state.draft[k] || 0);
+        const done = val >= r.quota;
+        const other = r.item.group !== myGroup;
+        return `<div class="bg-slate-950/70 border ${done ? 'border-emerald-500/60' : 'border-slate-800'} rounded-xl p-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div class="flex-1 min-w-[9rem]">
+            <div class="font-bold text-white">${esc(r.item.name)} ${r.item.verify ? VERIFY_BADGE : ''} ${done ? '<span class="text-[11px] bg-emerald-500 text-slate-950 font-black px-1.5 py-0.5 rounded-full nowrap">✓ 已達標</span>' : ''}</div>
+            <div class="text-xs text-slate-400">${other ? `支援 ${r.item.group}組・` : ''}每人責任額 <b class="text-indigo-300">${fmt(r.quota)}</b>${c.heads[r.item.group].real ? '' : '（預估）'}・目前 ${pct(val, r.quota)}%</div>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="changeMemberCount('${g.id}', -1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-600">-</button>
-            <span class="w-8 text-center font-black text-base text-white">${state.members[g.id]}人</span>
-            <button onclick="changeMemberCount('${g.id}', 1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-600">+</button>
+            <input type="number" inputmode="numeric" min="0" max="1000000" step="1" data-key="${k}" value="${val || ''}" placeholder="0"
+              class="w-24 bg-slate-900 border border-slate-600 rounded-lg px-2 py-2 text-right text-white font-bold">
+            <button data-act="fill" data-key="${k}" data-quota="${r.quota}" class="px-2.5 py-2 rounded-lg bg-slate-800 border border-slate-600 text-xs text-slate-200 nowrap">填滿</button>
+            <button data-act="zero" data-key="${k}" class="px-2.5 py-2 rounded-lg bg-slate-800 border border-slate-600 text-xs text-slate-400 nowrap">歸零</button>
           </div>
+        </div>`;
+      }).join('')}</div></div>`;
+  }
+  if (!rowsHtml) rowsHtml = '<p class="text-sm text-slate-400 mt-3">👆 先認領一個組別，這裡就會出現你要回報的項目（或勾選「顯示所有項目」支援別組）。</p>';
+
+  el.innerHTML = `
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h2 class="text-lg font-bold text-white min-w-0">🙋 <span class="break-all">${esc(state.meId)}</span>
+        ${g ? `<span class="text-sm font-medium ${COLORS[g.color].soft}">・${g.icon} ${g.id}組 ${esc(g.name)}</span>` : '<span class="text-sm font-medium text-slate-400">・尚未認領</span>'}</h2>
+      <button data-act="switch-id" class="text-xs text-slate-400 underline">切換 ID</button>
+    </div>
+    <div class="mt-3 text-sm font-bold text-slate-200">① 認領組別</div>
+    <div class="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">${groupBtns}</div>
+    ${myGroup ? `<button data-act="claim" data-group="" class="mt-2 text-xs text-slate-400 underline" ${state.saving ? 'disabled' : ''}>取消認領</button>` : ''}
+    <div class="mt-5 flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <div class="text-sm font-bold text-slate-200">② 回報我已交的數量</div>
+        <div class="text-xs text-slate-400">請填「到目前為止已交給公會船的累計總數」，不是今天新增的量。</div>
+      </div>
+      <label class="flex items-center gap-2 text-xs text-slate-300 select-none cursor-pointer">
+        <input type="checkbox" data-act="show-all" ${state.showAll ? 'checked' : ''} class="w-4 h-4 accent-indigo-500"> 顯示所有項目（支援別組）
+      </label>
+    </div>
+    ${rowsHtml}
+    <div class="mt-4 flex flex-wrap items-center gap-3">
+      <button data-act="save" ${state.saving ? 'disabled' : ''} class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 font-bold text-white">${state.saving ? '儲存中…' : '💾 儲存回報'}</button>
+      <span class="text-sm ${state.dirty ? 'text-amber-300' : 'text-slate-400'}">${state.dirty ? '有尚未儲存的變更' : esc(state.flash)}</span>
+      ${me ? '<button data-act="delete-me" class="ml-auto text-xs text-rose-300/80 underline">刪除我的紀錄</button>' : ''}
+    </div>`;
+}
+
+/* ---------- 畫面：階段進度 ---------- */
+function renderStages() {
+  const c = computed();
+  $('stages').innerHTML = c.stages.map(s => {
+    const col = COLORS[s.color];
+    const cur = s.id === c.currentId;
+    return `<div class="bg-slate-800/50 border ${cur ? col.border.replace('/40', '') + ' ring-1 ring-white/10' : col.border} rounded-xl p-3">
+      <div class="flex items-center justify-between gap-2">
+        <div class="text-xs font-bold ${col.text} nowrap">${esc(s.label)}</div>
+        <div class="text-xs font-black ${s.done ? 'text-emerald-300' : cur ? 'text-white' : 'text-slate-500'} nowrap">${s.done ? '✅ 完成' : cur ? '🔥 進行中' : '等待中'}</div>
+      </div>
+      <div class="flex items-baseline justify-between gap-2 mt-0.5">
+        <div class="text-sm font-bold text-white">${esc(s.id)} ${esc(s.name)}</div>
+        <div class="text-lg font-black ${col.soft}">${s.pct}%</div>
+      </div>
+      <div class="bar mt-1"><div class="${col.bar}" style="width:${s.pct}%"></div></div>
+      <div class="mt-2 space-y-1.5">${s.rows.map(r => `
+        <div>
+          <div class="flex justify-between gap-2 text-xs"><span class="text-slate-300">${groupById(r.item.group).icon} ${esc(r.item.name)}</span>
+          <span class="text-slate-400 nowrap"><b class="${r.have >= r.qty ? 'text-emerald-300' : 'text-slate-200'}">${fmt(r.have)}</b> / ${fmt(r.qty)}</span></div>
+          <div class="bar mt-0.5" style="height:4px"><div class="${col.bar}" style="width:${r.pct}%"></div></div>
+        </div>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- 畫面：分組卡片 ---------- */
+function renderFilters() {
+  const btn = (id, label) => `<button data-act="filter" data-filter="${id}" class="px-3 py-1.5 rounded-lg text-xs font-bold transition nowrap ${state.filter === id ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800'}">${label}</button>`;
+  $('filters').innerHTML = btn('ALL', '全部') + CONFIG.groups.map(g => btn(g.id, `${g.icon} ${g.id}組`)).join('');
+}
+
+function rowDetails(s, r, h) {
+  const { crafts, raw } = expandNeeds({ [r.item.name]: r.qty });
+  const id = `row-${s.id}-${r.itemId}`;
+  const per = n => Math.ceil(n / h.n);
+  return `<details data-det="${id}" ${state.openDet.has(id) ? 'open' : ''} class="mt-2.5 bg-slate-900/70 rounded-lg border border-slate-800/90 px-2.5 py-1.5">
+    <summary class="text-xs font-bold text-slate-300"><span class="chev">▶</span> 🧪 每人要準備的原料（依 ${h.n} 人${h.real ? '' : '預估'}）${r.item.verify ? ' ' + VERIFY_BADGE : ''}</summary>
+    <div class="mt-1.5 space-y-1">
+      ${Object.entries(raw).map(([k, v]) => `<div class="flex justify-between gap-2 text-xs"><span class="text-slate-300">▸ ${esc(k)}</span>
+        <span class="text-slate-300 nowrap">每人約 <b class="text-amber-300">${fmt(per(v))}</b> <span class="text-slate-500">（全會 ${fmt(v)}）</span></span></div>`).join('')}
+      <div class="text-[11px] text-slate-500 pt-1 border-t border-slate-800/80">加工批數：${Object.entries(crafts).map(([k, v]) => `${esc(k)} ${fmt(v)} 批（每人約 ${fmt(per(v))}）`).join('、')}</div>
+      <div class="text-[11px] text-slate-400">${esc(r.item.note)}</div>
+      ${r.item.verify ? `<div class="text-[11px] text-amber-300/80">⚠️ ${esc(r.item.verify)}</div>` : ''}
+    </div>
+  </details>`;
+}
+
+function renderGroups() {
+  const c = computed();
+  const list = state.filter === 'ALL' ? CONFIG.groups : CONFIG.groups.filter(g => g.id === state.filter);
+  $('groups').innerHTML = list.map(g => {
+    const col = COLORS[g.color];
+    const h = c.heads[g.id];
+    const members = c.claimed[g.id];
+    const itemIds = Object.keys(CONFIG.items).filter(id => CONFIG.items[id].group === g.id);
+
+    const stageBlocks = c.stages.map(s => {
+      const rows = s.rows.filter(r => r.item.group === g.id);
+      if (!rows.length) return '';
+      const scol = COLORS[s.color];
+      return rows.map(r => `
+        <div class="bg-slate-950/80 border ${r.have >= r.qty ? 'border-emerald-500/60' : 'border-slate-800'} rounded-xl p-3.5">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="px-2 py-0.5 text-[11px] font-bold rounded border ${scol.tag} nowrap">${esc(s.id)} ${esc(s.name)}${s.id === c.currentId ? '・進行中' : ''}</span>
+              <h4 class="text-lg font-black text-white mt-1">${esc(r.item.name)} ${r.item.verify ? VERIFY_BADGE : ''} ${r.have >= r.qty ? '<span class="text-xs bg-emerald-500 text-slate-950 font-black px-2 py-0.5 rounded-full nowrap">✓ 已達標</span>' : ''}</h4>
+            </div>
+            <div class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-right">
+              <div class="text-[11px] text-slate-400 nowrap">每人責任額${h.real ? '' : '（預估）'}</div>
+              <div class="text-xl font-black text-indigo-400 nowrap">${fmt(r.quota)} <span class="text-xs font-normal text-slate-300">${esc(r.item.unit)}</span></div>
+            </div>
+          </div>
+          <div class="flex justify-between text-xs text-slate-400 mt-2"><span>全公會已交 <b class="text-slate-100">${fmt(r.have)}</b> / ${fmt(r.qty)}</span><span>${r.pct}%</span></div>
+          <div class="bar mt-1"><div class="${scol.bar}" style="width:${r.pct}%"></div></div>
+          ${rowDetails(s, r, h)}
+        </div>`).join('');
+    }).join('');
+
+    const recipeNames = [];
+    itemIds.forEach(id => chainOf(CONFIG.items[id].name, recipeNames));
+    const recipeHtml = recipeNames.map(n => {
+      const rc = CONFIG.recipes[n];
+      return `<div class="py-1.5 border-b border-slate-800/80 last:border-0 text-xs">
+        <div class="flex flex-wrap justify-between gap-x-2"><span class="font-bold text-slate-200">${esc(n)} ×${rc.out} ${rc.verify ? VERIFY_BADGE : ''}</span><span class="text-slate-500 nowrap">${esc(rc.station)}・${esc(rc.time)}</span></div>
+        <div class="text-slate-400">← ${Object.entries(rc.in).map(([k, v]) => `${esc(k)} ${fmt(v)}`).join(' + ')}</div>
+        ${rc.verify ? `<div class="text-amber-300/80 text-[11px]">⚠️ ${esc(rc.verify)}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    const chips = members.length
+      ? members.map(m => `<span class="px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-xs text-white break-all">${esc(m.id)}</span>`).join('')
+      : '<span class="text-xs text-slate-400">尚無人認領，快來當第一個！</span>';
+
+    return `<article class="bg-slate-900/90 border ${col.border} ${col.glow} rounded-2xl overflow-hidden flex flex-col">
+      <div class="bg-gradient-to-r ${col.head} p-4 md:p-5 border-b border-slate-800">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5 min-w-0"><span class="text-2xl">${g.icon}</span><h3 class="text-xl font-black text-white">${g.id}組：${esc(g.name)}</h3></div>
+          <span class="px-3 py-1 rounded-full text-xs font-black bg-white/10 text-white border border-white/15 nowrap">已認領 ${members.length} 人・建議 ${g.plannedMembers} 人</span>
         </div>
-      `).join('');
+        <p class="text-xs md:text-sm text-slate-300 mt-2">${esc(g.tagline)}</p>
+        <div class="mt-3 bg-black/30 border border-white/10 rounded-xl p-2.5 text-xs text-amber-200">💡 <strong>組員行動指南：</strong>${esc(g.actionGuide)}</div>
+        <div class="mt-3 flex flex-wrap gap-1.5">${chips}</div>
+      </div>
+      <div class="p-4 md:p-5 space-y-3 flex-1">
+        ${stageBlocks}
+        <details data-det="recipes-${g.id}" ${state.openDet.has('recipes-' + g.id) ? 'open' : ''} class="bg-slate-900/70 rounded-lg border border-slate-800/90 px-3 py-2">
+          <summary class="text-xs font-bold text-slate-300"><span class="chev">▶</span> 📖 本組配方表（每批投入 → 產出，時間為無生活會員）</summary>
+          <div class="mt-1">${recipeHtml}</div>
+        </details>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+/* ---------- 畫面：名單 ---------- */
+function renderRoster() {
+  const q = $('roster-search').value.trim().toLowerCase();
+  const list = state.members.filter(m => !q || m.id.toLowerCase().includes(q));
+  $('roster-count').textContent = `（共 ${state.members.length} 人）`;
+  const sections = [...CONFIG.groups.map(g => ({ id: g.id, title: `${g.icon} ${g.id}組 ${g.name}`, color: COLORS[g.color].soft })), { id: '', title: '❔ 尚未認領', color: 'text-slate-400' }];
+  const html = sections.map(sec => {
+    const ms = list.filter(m => m.group === sec.id).sort((a, b) => a.id.localeCompare(b.id, 'zh-TW'));
+    if (!ms.length) return '';
+    return `<div>
+      <div class="text-sm font-bold ${sec.color} mb-1.5">${esc(sec.title)}（${ms.length}）</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">${ms.map(m => {
+        const entries = CONFIG.stages.flatMap(s => s.needs.map(n => [s, n])).filter(([s, n]) => m.reports[key(s.id, n.item)] > 0);
+        const chips = entries.length ? entries.map(([s, n]) => `<span class="nowrap">${esc(s.id)} ${esc(CONFIG.items[n.item].name)} <b class="text-slate-100">${fmt(m.reports[key(s.id, n.item)])}</b></span>`).join('<span class="text-slate-600">・</span>') : '<span class="text-slate-500">尚未回報</span>';
+        const isMe = state.meId && m.id.toLowerCase() === state.meId.toLowerCase();
+        return `<div class="bg-slate-900/80 border ${isMe ? 'border-indigo-500/60' : 'border-slate-800'} rounded-xl px-3 py-2">
+          <div class="flex justify-between gap-2"><span class="font-bold text-white break-all">${esc(m.id)}${isMe ? ' <span class="text-xs text-indigo-300">（我）</span>' : ''}</span><span class="text-[11px] text-slate-500 nowrap">${esc(timeText(m.updatedAt))}</span></div>
+          <div class="text-xs text-slate-400 mt-0.5 flex flex-wrap gap-x-1">${chips}</div>
+        </div>`;
+      }).join('')}</div></div>`;
+  }).join('');
+  $('roster').innerHTML = html || `<p class="text-sm text-slate-400">${q ? '找不到符合的 ID' : (state.loaded ? '還沒有人認領，成為第一個吧！' : '載入中…')}</p>`;
+}
+
+function renderAll() {
+  syncDraft();
+  renderStatus(); renderMine(); renderStages(); renderFilters(); renderGroups(); renderRoster();
+}
+
+/* ---------- 公告 ---------- */
+function buildAnnouncement() {
+  const c = computed();
+  const L = [];
+  const total = state.members.filter(m => m.group).length;
+  L.push(`🚢【公會船第二階段・專責分組作戰】🚢（目前已認領 ${total} 人）`);
+  L.push('每人認領一組，專心搞定該組責任額！認領與回報請到看板：');
+  L.push(location.href.split('#')[0]);
+  L.push('');
+  L.push('🏗️【施工進度】');
+  c.stages.forEach(s => L.push(`  ${s.id} ${s.name}：${s.pct}%${s.done ? ' ✅' : s.id === c.currentId ? ' 🔥進行中' : ''}`));
+  L.push('');
+  CONFIG.groups.forEach(g => {
+    const h = c.heads[g.id];
+    L.push(`${g.icon}【${g.id}組：${g.name}】（${h.real ? `已認領 ${h.n} 人` : `尚無人認領，以 ${h.n} 人估算`}）`);
+    L.push(`▸ 行動重點：${g.actionGuide}`);
+    c.stages.forEach(s => s.rows.filter(r => r.item.group === g.id).forEach(r => {
+      L.push(`  • [${s.id}] ${r.item.name}：每人 ${fmt(r.quota)} 個（全會 ${fmt(r.have)}/${fmt(r.qty)}）`);
+      const raw = expandNeeds({ [r.item.name]: r.qty }).raw;
+      L.push(`      每人原料約：${Object.entries(raw).map(([k, v]) => `${k} ${fmt(Math.ceil(v / h.n))}`).join('、')}`);
+    }));
+    L.push('');
+  });
+  L.push('📌【提醒】');
+  L.push('1. 施工順序 2-1 ➔ 2-2 ➔ 2-3 ➔ 2-4，A組(木材+)、B組(鋼錠/焦油) 請優先繳交 2-1 材料！');
+  const allNeeds = {};
+  CONFIG.stages.forEach(st => st.needs.forEach(n => { const nm = CONFIG.items[n.item].name; allNeeds[nm] = (allNeeds[nm] || 0) + n.qty; }));
+  const wax = expandNeeds(allNeeds).raw['蜂蠟'] || 0;
+  L.push(`2. 蜂蠟共需約 ${fmt(wax)} 個（厚布料＋繩索），雜貨店每角色每週限購 30 個，請全公會每週買滿支援 C 組！`);
+  L.push('3. D組：壯壯蘑菇汁液、魔力藥草可向麗莎／馬努斯購買，每週各 30 次，記得買滿。');
+  L.push('4. 交完材料記得到看板更新「累計已交數量」，大家才看得到進度。');
+  if (CONFIG.DATA_STATUS !== '已核實') L.push(`※ 數量${CONFIG.DATA_STATUS}，以遊戲內顯示為準；原料未計大成功。`);
+  return L.join('\n');
+}
+let lastFocus = null;
+function openModal() {
+  lastFocus = document.activeElement;
+  $('announce-text').value = buildAnnouncement();
+  $('modal').classList.remove('hidden'); $('modal').classList.add('flex');
+  document.body.classList.add('modal-open');
+  $('copy-btn').focus();
+}
+function closeModal() {
+  $('modal').classList.add('hidden'); $('modal').classList.remove('flex');
+  document.body.classList.remove('modal-open');
+  if (lastFocus) lastFocus.focus();
+}
+async function copyAnnouncement() {
+  const ta = $('announce-text'); const btn = $('copy-btn');
+  try { await navigator.clipboard.writeText(ta.value); }
+  catch (e) { ta.select(); try { document.execCommand('copy'); } catch (e2) {} }
+  btn.textContent = '✅ 已複製！';
+  setTimeout(() => { btn.textContent = '📋 複製公告文字'; }, 2000);
+}
+
+/* ---------- 事件 ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) {
+    if (e.target === $('modal')) closeModal();   // 點背景關閉
+    return;
+  }
+  const act = el.dataset.act;
+  if (act === 'open-modal') openModal();
+  else if (act === 'close-modal') closeModal();
+  else if (act === 'copy') copyAnnouncement();
+  else if (act === 'refresh') refresh();
+  else if (act === 'filter') { state.filter = el.dataset.filter; renderFilters(); renderGroups(); }
+  else if (act === 'claim') {
+    if (state.saving) return;
+    const gid = el.dataset.group;
+    const me = myRecord();
+    if (me && me.group === gid) return;
+    if (gid === '' && !confirm('確定要取消認領嗎？（已回報的數量會保留）')) return;
+    save({ action: 'upsert', id: state.meId, group: gid }, gid ? `✅ 已認領 ${gid} 組` : '已取消認領');
+  }
+  else if (act === 'fill' || act === 'zero') {
+    state.draft[el.dataset.key] = act === 'fill' ? Number(el.dataset.quota) : 0;
+    state.dirty = true; state.flash = ''; renderMine();
+  }
+  else if (act === 'save') {
+    if (state.saving) return;
+    const reports = {};
+    for (const s of CONFIG.stages) for (const n of s.needs) {
+      const k = key(s.id, n.item);
+      const v = Number(state.draft[k] || 0);
+      if (!Number.isInteger(v) || v < 0 || v > 1000000) { state.flash = '❌ 數量必須是 0～1,000,000 的整數'; renderMine(); return; }
+      reports[k] = v;
     }
+    save({ action: 'upsert', id: state.meId, reports }, '✅ 回報已儲存');
+  }
+  else if (act === 'switch-id') {
+    if (state.dirty && !confirm('有尚未儲存的變更，確定切換？')) return;
+    state.meId = ''; localStorage.removeItem(LS_ME); state.dirty = false; state.flash = ''; renderAll();
+  }
+  else if (act === 'delete-me') {
+    if (!confirm(`確定要刪除「${state.meId}」的認領與回報紀錄嗎？此動作無法復原。`)) return;
+    state.dirty = false;
+    save({ action: 'delete', id: state.meId }, '已刪除紀錄');
+  }
+  else if (act === 'demo-reset') {
+    if (!confirm('重設示範資料？')) return;
+    localStorage.removeItem(LS_DEMO); state.dirty = false; refresh();
+  }
+});
 
-    function renderGroups() {
-      const container = document.getElementById('groups-container');
-      const filtered = state.filter === 'ALL'
-        ? defaultGroups
-        : defaultGroups.filter(g => g.id === state.filter);
+document.addEventListener('change', e => {
+  if (e.target.matches('[data-act=show-all]')) { state.showAll = e.target.checked; renderMine(); }
+  else if (e.target.matches('#mine input[type=number]')) {
+    // 失焦或按 Enter 後才重繪（顯示已達標標記）
+    setTimeout(renderMine, 0);
+  }
+});
 
-      container.innerHTML = filtered.map(group => {
-        const memberCount = state.members[group.id];
-        const borderColors = {
-          emerald: 'border-emerald-500/40',
-          amber: 'border-amber-500/40',
-          blue: 'border-blue-500/40',
-          purple: 'border-purple-500/40'
-        }[group.color];
+document.addEventListener('input', e => {
+  if (e.target.matches('#mine input[type=number]')) {
+    const raw = e.target.value;
+    let v = raw === '' ? 0 : Math.floor(Number(raw));
+    if (!isFinite(v) || v < 0) v = 0;
+    if (v > 1000000) v = 1000000;
+    state.draft[e.target.dataset.key] = v;
+    state.dirty = true; state.flash = '';
+  } else if (e.target.id === 'roster-search') renderRoster();
+});
 
-        const headerBg = {
-          emerald: 'from-emerald-950/80 to-slate-900',
-          amber: 'from-amber-950/80 to-slate-900',
-          blue: 'from-blue-950/80 to-slate-900',
-          purple: 'from-purple-950/80 to-slate-900'
-        }[group.color];
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'id-form') return;
+  e.preventDefault();
+  const r = cleanId($('id-input').value);
+  if (r.error) { $('id-error').textContent = r.error; return; }
+  // 若名單中已有同名（大小寫不同），沿用名單上的寫法
+  const exist = state.members.find(m => m.id.toLowerCase() === r.id.toLowerCase());
+  state.meId = exist ? exist.id : r.id;
+  localStorage.setItem(LS_ME, state.meId);
+  state.dirty = false; state.flash = exist ? `歡迎回來，${state.meId}！` : '';
+  renderAll();
+});
 
-        const tasksHtml = group.tasks.map(task => {
-          const personalQuota = Math.ceil(task.totalGuild / memberCount);
-          const prog = state.progress[task.id] || { done: false, count: 0 };
-          const pct = Math.min(100, Math.round((prog.count / personalQuota) * 100));
+document.addEventListener('toggle', e => {
+  const id = e.target.dataset && e.target.dataset.det;
+  if (id) { if (e.target.open) state.openDet.add(id); else state.openDet.delete(id); }
+}, true);
 
-          const rawHtml = task.rawItems.map(raw => {
-            const personalRaw = Math.ceil(raw.total / memberCount);
-            return `
-              <div class="flex items-center justify-between text-xs py-1 border-b border-slate-800/80 last:border-0">
-                <span class="text-slate-300">▸ 預估底層材料：${raw.name}</span>
-                <span class="font-bold text-slate-200">每人約 <span class="text-amber-300">${personalRaw.toLocaleString()}</span> 個 <span class="text-slate-500">(全會約 ${raw.total.toLocaleString()})</span></span>
-              </div>
-            `;
-          }).join('');
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal();
+});
 
-          return `
-            <div class="bg-slate-950/80 border ${prog.done ? 'border-emerald-500/60' : 'border-slate-800'} rounded-xl p-4 transition">
-              <div class="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <span class="px-2 py-0.5 text-[11px] font-bold rounded border ${task.stageColor}">${task.stage}</span>
-                    <span class="text-xs text-slate-400">全公會總目標：${task.totalGuild.toLocaleString()}${task.unit}</span>
-                  </div>
-                  <h4 class="text-lg font-black text-white mt-1 flex items-center gap-2">
-                    ${task.name}${prog.done ? '<span class="text-xs bg-emerald-500 text-slate-950 font-black px-2 py-0.5 rounded-full">✓ 已達標</span>' : ''}
-                  </h4>
-                </div>
+window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
-                <!-- 每人責任額醒目框 -->
-                <div class="bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-right">
-                  <div class="text-[11px] text-slate-400">每人必交成品責任額</div>
-                  <div class="text-2xl font-black text-indigo-400">${personalQuota.toLocaleString()} <span class="text-xs font-normal text-slate-300">${task.unit}</span></div>
-                </div>
-              </div>
+// 自動更新：每 45 秒；切到背景暫停，回到前景立即更新
+setInterval(() => { if (!document.hidden) refresh(); }, REFRESH_MS);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.lastSync && Date.now() - state.lastSync.getTime() > 15000) refresh();
+});
 
-              <p class="text-xs text-slate-400 mt-2">${task.rawNote}</p>
-
-              <!-- 底層原料換算 -->
-              <div class="mt-3 bg-slate-900/70 rounded-lg p-2.5 border border-slate-800/90">
-                ${rawHtml}
-              </div>
-
-              <!-- 個人進度紀錄列 -->
-              <div class="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                <label class="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-300">
-                  <input type="checkbox" ${prog.done ? 'checked' : ''} onchange="toggleTaskDone('${task.id}',${personalQuota})" class="w-4 h-4 rounded accent-emerald-500">
-                  標記我的責任額已完成
-                </label>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-slate-400">目前已準備：</span>
-                  <input type="number" min="0" value="${prog.count}" onchange="updateTaskCount('${task.id}', this.value, ${personalQuota})" class="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white font-bold text-right">
-                  <span class="text-xs text-slate-400">/ ${personalQuota} (${pct}%)</span>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('');
-
-        return `
-          <article class="bg-slate-900/90 border ${borderColors}${group.glowClass} rounded-2xl overflow-hidden flex flex-col">
-            <div class="bg-gradient-to-r ${headerBg} p-5 border-b border-slate-800">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                  <span class="text-2xl">${group.icon}</span>
-                  <h3 class="text-xl font-black text-white">${group.name}</h3>
-                </div>
-                <span class="px-3 py-1 rounded-full text-xs font-black bg-white/10 text-white border border-white/15">
-                  編制：${memberCount} 人
-                </span>
-              </div>
-              <p class="text-xs md:text-sm text-slate-300 mt-2">${group.tagline}</p>
-              <div class="mt-3 bg-black/30 border border-white/10 rounded-xl p-2.5 text-xs text-amber-200">
-                💡 <strong>組員行動指南：</strong>${group.actionGuide}
-              </div>
-            </div>
-            <div class="p-5 space-y-4 flex-1">
-              ${tasksHtml}
-            </div>
-          </article>
-        `;
-      }).join('');
-    }
-
-    function openModal() {
-      const total = Object.values(state.members).reduce((a, b) => a + b, 0);
-      let lines = [
-        `🚢【公會船第二階段：${total}人專責分組作戰計畫】🚢`,
-        `為了不讓大家每種材料都挖到頭昏眼花，二階段採「專責分組制」！每人認領一組，專心搞定該組的責任額即可：`,
-        ``
-      ];
-
-      defaultGroups.forEach(g => {
-        const m = state.members[g.id];
-        lines.push(`${g.icon}【${g.name}】（編制：${m}人）`);
-        lines.push(`▸ 行動重點：${g.actionGuide}`);
-        g.tasks.forEach(t => {
-          const q = Math.ceil(t.totalGuild / m);
-          const rawStr = t.rawItems.map(r => `${r.name}約${Math.ceil(r.total / m)}個`).join('、');
-          lines.push(`  • ${t.name} [${t.stage}]：每人必交 ${q} 個 (公會總需 ${t.totalGuild})｜預估底層採集：${rawStr}`);
-        });
-        lines.push(``);
-      });
-
-      lines.push(`📌【施工推進與支援提醒】`);
-      lines.push(`1. 施工順序為 2-1 ➔ 2-2 ➔ 2-3 ➔ 2-4，請 A組(木材+)、B組(鋼錠/焦油) 優先繳交 2-1 材料！`);
-      lines.push(`2. C組製作厚布需要「蜂蠟」，非 C 組成員每週若有買到蜂蠟請支援捐獻！`);
-      lines.push(`3. 請在下方留言報名組別（例：ID + 報名A組）！`);
-
-      document.getElementById('announcement-text').value = lines.join('\n');
-      const modal = document.getElementById('announcement-modal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
-
-    function closeModal() {
-      const modal = document.getElementById('announcement-modal');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-    }
-
-    function copyAnnouncement() {
-      const textarea = document.getElementById('announcement-text');
-      textarea.select();
-      navigator.clipboard.writeText(textarea.value);
-      const btn = document.getElementById('copy-btn');
-      btn.textContent = '✅ 已複製到剪貼簿！';
-      setTimeout(() => { btn.textContent = '📋 複製公告文字'; }, 2000);
-    }
-
-    function renderAll() {
-      renderControls();
-      renderGroups();
-    }
-
-    loadState();
-    renderAll();
-  </script>
+renderAll();
+refresh();
+</script>
 </body>
 </html>
