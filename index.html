@@ -109,6 +109,9 @@
     .divide > * + * { border-top: 1px solid var(--line); }
 
     body.modal-open { overflow: hidden; }
+    .me-panel { background: linear-gradient(180deg, #141d31, #0f1626); }
+    @media (min-width: 768px) { .me-panel { border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 24px 60px -24px rgba(0,0,0,.8); } }
+    .me-item { border-left: 3px solid color-mix(in srgb, var(--ac) 60%, transparent); }
     header.top { background: rgba(11, 17, 32, .78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   </style>
 </head>
@@ -116,15 +119,16 @@
 
   <header class="top border-b sticky top-0 z-30" style="border-color: var(--line)">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3 min-w-0">
+      <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
         <img src="favicon.svg" alt="" width="38" height="38" class="rounded-[10px] flex-none">
         <div class="min-w-0">
-          <div class="eyebrow">諸神降臨・瑪奇 Mobile</div>
-          <h1 class="text-base md:text-xl font-bold text-slate-100 leading-tight truncate">公會船・第二階段認領看板</h1>
+          <div class="eyebrow nowrap">諸神降臨<span class="hidden sm:inline">・瑪奇 Mobile</span></div>
+          <h1 class="text-base md:text-xl font-bold text-slate-100 leading-tight truncate"><span class="sm:hidden">公會船認領看板</span><span class="hidden sm:inline">公會船・第二階段認領看板</span></h1>
         </div>
       </div>
       <div class="flex items-center gap-2 flex-none">
         <span id="sync-status" class="hidden md:inline text-xs faint nowrap num mr-1">載入中…</span>
+        <button data-act="open-me" class="btn btn-ghost px-3 py-2 nowrap" aria-label="我的待辦">📋<span class="sm:hidden"> 待辦</span><span class="hidden sm:inline"> 我的待辦</span></button>
         <button data-act="refresh" id="refresh-btn" aria-label="重新整理" class="btn btn-ghost px-3 py-2 nowrap">↻<span class="hidden sm:inline"> 重新整理</span></button>
         <button data-act="open-modal" class="btn btn-primary px-3 md:px-4 py-2 nowrap">公告<span class="hidden sm:inline">文字</span></button>
       </div>
@@ -171,6 +175,8 @@
       <div id="groups" class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 items-start"></div>
     </section>
 
+    <section id="me-entry" class="card p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between"></section>
+
     <section class="card p-4 md:p-6">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 class="sec-title">認領名單 <span id="roster-count" class="text-sm font-normal faint"></span></h2>
@@ -181,6 +187,20 @@
 
     <footer class="text-center text-xs faint pt-2">諸神降臨 公會 ・ 先認領再備料，避免重複準備</footer>
   </main>
+
+  <div id="me-sheet" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm md:items-center md:justify-center md:p-6" role="dialog" aria-modal="true" aria-labelledby="me-title">
+    <div class="me-panel w-full h-full md:h-auto md:max-h-[90vh] md:max-w-xl flex flex-col">
+      <div class="flex items-center justify-between gap-2 px-4 md:px-6 pt-4 pb-3 border-b" style="border-color:var(--line); padding-top: max(1rem, env(safe-area-inset-top))">
+        <div class="min-w-0">
+          <div class="eyebrow">諸神降臨・公會船第二階段</div>
+          <h3 id="me-title" class="text-lg font-bold text-slate-100">我的待辦</h3>
+        </div>
+        <button data-act="close-me" aria-label="關閉" class="btn btn-ghost w-10 h-10 text-xl leading-none flex-none">&times;</button>
+      </div>
+      <div id="me-body" class="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-4"></div>
+      <div id="me-foot" class="px-4 md:px-6 py-3 border-t flex items-center justify-end gap-2" style="border-color:var(--line); padding-bottom: max(.75rem, env(safe-area-inset-bottom))"></div>
+    </div>
+  </div>
 
   <div id="modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3 md:p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="card max-w-2xl w-full p-4 md:p-6 flex flex-col gap-3 max-h-[92vh]" style="background:#121a2c">
@@ -776,7 +796,170 @@ function renderRoster() {
 
 function renderAll() {
   syncDraft();
-  renderStatus(); renderMine(); renderStages(); renderFilters(); renderGroups(); renderRoster();
+  renderStatus(); renderMine(); renderStages(); renderFilters(); renderGroups(); renderRoster(); renderMeEntry();
+  if (meOpen()) renderMe();
+}
+
+/* ---------- 我的待辦 ---------- */
+// 我已儲存的認領（依階段順序）
+function myPledges() {
+  const me = myRecord();
+  if (!me) return [];
+  const c = computed();
+  const list = [];
+  c.stages.forEach(s => s.rows.forEach(r => {
+    const n = Number(me.reports[key(s.id, r.itemId)]) || 0;
+    if (n > 0) list.push({ s, r, n });
+  }));
+  return list;
+}
+function myTotals(pledges) {
+  const total = {};
+  const order = [];
+  pledges.forEach(({ r, n }) => Object.entries(sortedRaw(r.item.name, n)).forEach(([k, v]) => {
+    if (!(k in total)) { total[k] = 0; order.push(k); }
+    total[k] += v;
+  }));
+  return order.map(k => [k, total[k]]);
+}
+function pledgeStatus(r) {
+  if (r.over) return { cls: 'chip-warn', text: `全公會已超出 ${fmt(r.over)} 個`, hint: '大家認領得比目標多，可以考慮把你的數量改小一些。' };
+  if (!r.gap) return { cls: 'chip-ok', text: '已全部認領完畢', hint: '' };
+  return { cls: '', text: `還有 ${fmt(r.gap)} 個沒人認領`, hint: '' };
+}
+
+function renderMeEntry() {
+  const el = $('me-entry');
+  const n = state.meId ? myPledges().length : 0;
+  const sub = !state.meId ? '輸入遊戲 ID 並認領數量後，這裡會整理出你要準備的東西。'
+    : n ? `你認領了 ${n} 項，點開就能看到要準備的原料與做法。`
+    : '你還沒有認領任何數量，先到上面的「② 認領數量」填寫。';
+  el.innerHTML = `
+    <div class="min-w-0">
+      <h2 class="sec-title">📋 我的待辦</h2>
+      <p class="text-sm muted mt-1">${esc(sub)}</p>
+    </div>
+    <button data-act="open-me" class="btn btn-primary px-6 py-3 text-base nowrap w-full sm:w-auto">打開我的待辦</button>`;
+}
+
+function buildMeText() {
+  const me = myRecord();
+  const g = me && groupById(me.group);
+  const pledges = myPledges();
+  const L = [`📋 我的待辦｜${CONFIG.guildName} 公會船第二階段`, `ID：${state.meId}${g ? `・${g.id} 組 ${g.name}` : ''}`, ''];
+  pledges.forEach(({ s, r, n }) => {
+    L.push(`【${s.id} ${s.name}】${r.item.name} ${fmt(n)} ${r.item.unit}`);
+    L.push(`  需要：${rawList(sortedRaw(r.item.name, n)).join('、')}`);
+    recipeSteps(r.item.name).forEach((st, i) => L.push(`  ${i + 1}. ${st.text}（${st.where}）`));
+    const ps = pledgeStatus(r);
+    if (r.over) L.push(`  ※ ${ps.text}，可以考慮減少`);
+    L.push('');
+  });
+  L.push('▍我要準備的原料總表');
+  myTotals(pledges).forEach(([k, v]) => L.push(`  ${k} 約 ${fmt(v)} ${unitOf(k)}`));
+  if (myTotals(pledges).some(([k]) => k === '蜂蠟')) { L.push(''); L.push(`🐝 蜂蠟：${CONFIG.notes.beeswax}`); }
+  L.push('');
+  L.push(location.href.split('#')[0]);
+  return L.join('\n');
+}
+
+function renderMe() {
+  const body = $('me-body'), foot = $('me-foot');
+  const closeBtn = '<button data-act="close-me" class="btn btn-ghost px-4 py-2">關閉</button>';
+  if (!state.meId) {
+    body.innerHTML = `<div class="text-center py-10">
+      <div class="text-3xl">🙋</div>
+      <p class="text-slate-200 font-bold mt-3">還沒輸入遊戲 ID</p>
+      <p class="text-sm muted mt-1">輸入 ID 並認領數量後，這裡會整理出你要準備的東西。</p>
+      <button data-act="goto-claim" class="btn btn-primary px-6 py-2.5 mt-5">去輸入 ID</button></div>`;
+    foot.innerHTML = closeBtn; return;
+  }
+  const me = myRecord();
+  const g = me && groupById(me.group);
+  const pledges = myPledges();
+  const head = `<div class="flex items-center justify-between gap-2">
+      <div class="min-w-0"><div class="text-xl font-bold text-slate-100 break-all">${esc(state.meId)}</div>
+      <div class="text-sm mt-0.5" ${g ? acStyle(g.color) : ''}>${g ? `<span class="ac-text">${g.icon} ${g.id} 組・${esc(g.name)}</span>` : '<span class="muted">還沒選擇組別</span>'}</div></div>
+      ${pledges.length ? `<span class="chip nowrap">共 ${pledges.length} 項</span>` : ''}
+    </div>
+    ${state.dirty ? '<div class="sub px-3 py-2 text-xs text-amber-100/85" style="border-color: rgba(214,170,100,.3)">你有還沒儲存的數量，這裡顯示的是已儲存的內容。請回到「② 認領數量」按「儲存認領」。</div>' : ''}`;
+  if (!pledges.length) {
+    body.innerHTML = head + `<div class="text-center py-8">
+      <p class="text-slate-200 font-bold">你還沒有認領任何數量</p>
+      <p class="text-sm muted mt-1">先認領，再開始準備，避免和別人重複。</p>
+      <button data-act="goto-claim" class="btn btn-primary px-6 py-2.5 mt-5">去認領</button></div>`;
+    foot.innerHTML = closeBtn; return;
+  }
+  const items = pledges.map(({ s, r, n }) => {
+    const raw = sortedRaw(r.item.name, n);
+    const ps = pledgeStatus(r);
+    return `<div class="sub me-item p-3.5" ${acStyle(s.color)}>
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-[11px] font-bold ac-text">${esc(s.id)} ${esc(s.name)}</div>
+          <div class="text-base font-bold text-slate-100 mt-0.5">${esc(r.item.name)} <span class="num">${fmt(n)}</span> <span class="text-sm muted font-normal">${esc(r.item.unit)}</span></div>
+        </div>
+        <span class="chip ${ps.cls} nowrap num">${esc(ps.text)}</span>
+      </div>
+      ${ps.hint ? `<div class="text-[11px] text-amber-200/75 mt-1.5">${esc(ps.hint)}</div>` : ''}
+      <div class="mt-2.5 text-xs text-slate-300 font-medium">需要：</div>
+      <ul class="mt-1 space-y-1 text-xs">${Object.entries(raw).map(([k, v]) => `<li class="flex justify-between gap-2"><span class="text-slate-300">${esc(k)}</span><span class="nowrap num"><span class="faint">約</span> <b class="font-semibold text-slate-100">${fmt(v)}</b> <span class="muted">${esc(unitOf(k))}</span></span></li>`).join('')}</ul>
+      <div class="mt-2.5 text-[11px] text-slate-300">做法（每做一次）：</div>
+      <ol class="mt-1 space-y-1">${recipeSteps(r.item.name).map((st, i) => `<li class="text-[11px] muted leading-relaxed"><span class="faint num">${i + 1}.</span> ${esc(st.text)} <span class="faint nowrap">（${esc(st.where)}）</span></li>`).join('')}</ol>
+    </div>`;
+  }).join('');
+  const totals = myTotals(pledges);
+  const needWax = totals.some(([k]) => k === '蜂蠟');
+  body.innerHTML = head + items + `
+    <div class="card p-4">
+      <div class="font-bold text-slate-100">我要準備的原料總表</div>
+      <div class="text-[11px] faint mt-0.5">把上面所有認領加起來</div>
+      <ul class="mt-2.5 space-y-1.5 text-sm">${totals.map(([k, v]) => `<li class="flex justify-between gap-2"><span class="text-slate-200">${esc(k)}</span><span class="nowrap num"><span class="faint text-xs">約</span> <b class="font-semibold text-slate-100">${fmt(v)}</b> <span class="muted text-xs">${esc(unitOf(k))}</span></span></li>`).join('')}</ul>
+    </div>
+    ${needWax ? tipBox('beeswax') : ''}`;
+  foot.innerHTML = `${closeBtn}<button data-act="copy-me" id="copy-me-btn" class="btn btn-primary px-5 py-2">複製我的待辦</button>`;
+}
+
+const meOpen = () => !$('me-sheet').classList.contains('hidden');
+let mePushed = false;
+function showMe() {
+  renderMe();
+  $('me-sheet').classList.remove('hidden'); $('me-sheet').classList.add('flex');
+  document.body.classList.add('modal-open');
+  $('me-body').scrollTop = 0;
+}
+function hideMe() {
+  $('me-sheet').classList.add('hidden'); $('me-sheet').classList.remove('flex');
+  if ($('modal').classList.contains('hidden')) document.body.classList.remove('modal-open');
+}
+function openMe() {
+  if (location.hash !== '#me') { mePushed = true; location.hash = 'me'; }  // hashchange 會負責顯示
+  else showMe();
+}
+function closeMe() {
+  if (location.hash === '#me') {
+    if (mePushed) { mePushed = false; history.back(); return; }   // 由瀏覽器「上一頁」關閉
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  hideMe();
+}
+window.addEventListener('hashchange', () => { if (location.hash === '#me') showMe(); else { mePushed = false; hideMe(); } });
+async function copyMe() {
+  const text = buildMeText(); const btn = $('copy-me-btn');
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e2) {}
+    ta.remove();
+  }
+  if (btn) { btn.textContent = '已複製 ✓'; setTimeout(() => { if ($('copy-me-btn')) $('copy-me-btn').textContent = '複製我的待辦'; }, 2000); }
+}
+function gotoClaim() {
+  closeMe();
+  setTimeout(() => {
+    $('mine').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const inp = $('id-input'); if (inp) inp.focus({ preventScroll: true });
+  }, 50);
 }
 
 /* ---------- 公告 ---------- */
@@ -841,10 +1024,15 @@ document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
   if (!el) {
     if (e.target === $('modal')) closeModal();   // 點背景關閉
+    else if (e.target === $('me-sheet')) closeMe();
     return;
   }
   const act = el.dataset.act;
   if (act === 'open-modal') openModal();
+  else if (act === 'open-me') openMe();
+  else if (act === 'close-me') closeMe();
+  else if (act === 'copy-me') copyMe();
+  else if (act === 'goto-claim') gotoClaim();
   else if (act === 'close-modal') closeModal();
   else if (act === 'copy') copyAnnouncement();
   else if (act === 'refresh') refresh();
@@ -933,7 +1121,9 @@ document.addEventListener('toggle', e => {
 }, true);
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal();
+  if (e.key !== 'Escape') return;
+  if (!$('modal').classList.contains('hidden')) closeModal();
+  else if (meOpen()) closeMe();
 });
 
 window.addEventListener('beforeunload', e => { if (state.dirty) { e.preventDefault(); e.returnValue = ''; } });
@@ -945,6 +1135,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 renderAll();
+if (location.hash === '#me') showMe();
 refresh();
 </script>
 </body>
