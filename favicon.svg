@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e2a44"/>
+      <stop offset="1" stop-color="#0d1424"/>
+    </linearGradient>
+    <linearGradient id="sail" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3e6c4"/>
+      <stop offset="1" stop-color="#cdb98a"/>
+    </linearGradient>
+    <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b98a5a"/>
+      <stop offset="1" stop-color="#7a5636"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <rect x="31" y="11" width="2.4" height="33" rx="1.2" fill="#9aa7bd"/>
+  <path d="M33.6 13 L33.6 40 L50 40 Z" fill="url(#sail)"/>
+  <path d="M30.8 18 L30.8 40 L17 40 Z" fill="url(#sail)" opacity=".82"/>
+  <path d="M33.4 9.5 L41 12 L33.4 14.5 Z" fill="#8fb3a6"/>
+  <path d="M11 43 H53 L47.5 51 Q46.6 52.3 45 52.3 H19 Q17.4 52.3 16.5 51 Z" fill="url(#hull)"/>
+  <path d="M8 56.5 Q14 53.5 20 56.5 T32 56.5 T44 56.5 T56 56.5" fill="none" stroke="#6f9bd1" stroke-width="2.2" stroke-linecap="round" opacity=".75"/>
+</svg>
